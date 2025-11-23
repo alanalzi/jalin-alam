@@ -1,4 +1,4 @@
-import dbConnect from '@/app/lib/mongoose';
+import connectDB from '@/app/lib/db';
 import Product from '@/app/models/Product';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -6,7 +6,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function GET(request, { params }) {
   const { id } = params;
-  await dbConnect();
+  await connectDB();
 
   try {
     const product = await Product.findById(id);
@@ -28,7 +28,7 @@ export async function PUT(request, { params }) {
   }
 
   const { id } = params;
-  await dbConnect();
+  await connectDB();
 
   try {
     const body = await request.json();
@@ -54,7 +54,7 @@ export async function DELETE(request, { params }) {
   }
 
   const { id } = params;
-  await dbConnect();
+  await connectDB();
 
   try {
     const deletedProduct = await Product.deleteOne({ _id: id });

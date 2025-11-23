@@ -1,4 +1,4 @@
-import dbConnect from '@/app/lib/mongoose';
+import connectDB from '@/app/lib/db';
 import User from '@/app/models/User';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -13,7 +13,7 @@ export async function PUT(request, { params }) {
   }
 
   const { id } = params;
-  await dbConnect();
+  await connectDB(); // Use the new connectDB function
 
   try {
     const body = await request.json();
