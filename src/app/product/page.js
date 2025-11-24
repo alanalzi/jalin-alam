@@ -5,42 +5,35 @@ import Image from "next/image";
 import styles from "./product-development.module.css";
 import { FaArrowLeft, FaEdit, FaTrash } from "react-icons/fa";
 
-// Dummy data for products
-const initialProducts = [
-  { id: 1, name: "Tas Rotan", sku: "TR-001", category: "Aksesoris", description: "Tas anyaman rotan alami.", image: "https://via.placeholder.com/150", startDate: "2025-11-20", deadline: "2025-12-20" },
-  { id: 2, name: "Kursi Bambu", sku: "KB-001", category: "Furnitur", description: "Kursi santai dari bambu.", image: "https://via.placeholder.com/150", startDate: "2025-11-25", deadline: "2025-12-25" },
-];
-
 export default function ProductDevelopmentPage() {
-  const [products, setProducts] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const storedProducts = localStorage.getItem("products");
-      if (storedProducts) {
-        try {
-          return JSON.parse(storedProducts);
-        } catch (error) {
-          console.error("Error parsing products from localStorage", error);
-          return initialProducts;
-        }
-      }
-    }
-    return initialProducts;
-  });
+  const [products, setProducts] = useState([]); // Initialize with empty array
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ id: null, name: "", sku: "", category: "", description: "", images: [], startDate: "", deadline: "" });
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("products", JSON.stringify(products));
+    async function fetchProducts() {
+      try {
+        const res = await fetch('/api/products');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        setProducts(data);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        // Fallback to initialProducts or empty array if API fails
+        setProducts([]);
+      }
     }
-  }, [products]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: null, name: "", sku: "", category: "", description: "", image: null, startDate: "", deadline: "" });
-  const [imagePreview, setImagePreview] = useState("");
+    fetchProducts();
+  }, []);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
     setIsModalOpen(false);
-    setFormData({ id: null, name: "", sku: "", category: "", description: "", image: null, startDate: "", deadline: "" });
-    setImagePreview("");
+    setFormData({ id: null, name: "", sku: "", category: "", description: "", images: [], startDate: "", deadline: "" });
+    setImagePreviews([]);
   };
 
   const handleInputChange = (e) => {
@@ -49,53 +42,67 @@ export default function ProductDevelopmentPage() {
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setFormData((prev) => ({ ...prev, image: file }));
-      setImagePreview(URL.createObjectURL(file));
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      const newImagePreviews = files.map(file => URL.createObjectURL(file));
+      
+      setFormData((prev) => ({ ...prev, images: files }));
+      setImagePreviews(newImagePreviews);
+    } else {
+      setFormData((prev) => ({ ...prev, images: [] }));
+      setImagePreviews([]);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    let imageUrl = formData.image;
 
-    if (formData.image && typeof formData.image !== 'string') {
-      const data = new FormData();
-      data.append('file', formData.image);
+    // Create a single FormData object for everything
+    const data = new FormData();
+    data.append('name', formData.name);
+    data.append('sku', formData.sku);
+    data.append('category', formData.category);
+    data.append('description', formData.description);
+    data.append('startDate', formData.startDate);
+    data.append('deadline', formData.deadline);
 
-      const res = await fetch('/api/upload', {
+    // Append all selected files
+    for (const image of formData.images) {
+      if (image instanceof File) {
+        data.append('images', image);
+      }
+    }
+
+    try {
+      const res = await fetch('/api/products', {
         method: 'POST',
+        // The 'Content-Type' header is automatically set by the browser
+        // to 'multipart/form-data' when the body is a FormData object.
+        // Do NOT set it manually.
         body: data,
       });
 
-      const result = await res.json();
-      if (result.success) {
-        imageUrl = result.url;
-      } else {
-        console.error("Image upload failed:", result.message || "Unknown error");
-        imageUrl = "/file.svg"; // Use a default placeholder image
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
       }
-    } else if (typeof formData.image === 'string' && formData.image.startsWith('blob:')) {
-      // If it's a blob URL (from URL.createObjectURL), replace with placeholder as blob URLs are temporary.
-      imageUrl = "/file.svg";
+
+      // Re-fetch products to update the list with the new entry
+      const fetchRes = await fetch('/api/products');
+      const updatedProducts = await fetchRes.json();
+      setProducts(updatedProducts);
+
+    } catch (error) {
+      console.error("Error adding product:", error);
+      alert(`Failed to add product: ${error.message}`);
     }
 
-    const productData = { ...formData, image: imageUrl };
-
-    if (formData.id) {
-      // Edit product
-      setProducts(products.map(p => p.id === formData.id ? productData : p));
-    } else {
-      // Add new product
-      setProducts([...products, { ...productData, id: Date.now() }]);
-    }
     closeModal();
   };
 
   const handleEdit = (product) => {
     setFormData(product);
-    setImagePreview(product.image);
+    setImagePreviews(product.images || []);
     openModal();
   };
 
@@ -144,7 +151,11 @@ export default function ProductDevelopmentPage() {
               return (
                 <tr key={product.id}>
                   <td>
-                    <Image src={product.image} alt={product.name} width={80} height={80} className={styles.productImage} />
+                    <div className={styles.productImageContainer}>
+                      {product.images && product.images.map((imgSrc, index) => (
+                        <Image key={index} src={imgSrc} alt={`${product.name} ${index + 1}`} width={50} height={50} className={styles.productImage} unoptimized={true} />
+                      ))}
+                    </div>
                   </td>
                   <td>{product.name}</td>
                   <td>{product.sku}</td>
@@ -199,8 +210,12 @@ export default function ProductDevelopmentPage() {
               </div>
               <div className={styles.formGroup}>
                 <label>Gambar Produk</label>
-                <input type="file" name="image" onChange={handleFileChange} />
-                {imagePreview && <Image src={imagePreview} alt="Preview" width={100} height={100} style={{ marginTop: '10px' }} unoptimized={true} />}
+                <input type="file" name="images" onChange={handleFileChange} multiple />
+                <div className={styles.imagePreviewContainer}>
+                  {imagePreviews.map((previewUrl, index) => (
+                    <Image key={index} src={previewUrl} alt={`Preview ${index + 1}`} width={100} height={100} style={{ marginTop: '10px', marginRight: '10px' }} unoptimized={true} />
+                  ))}
+                </div>
               </div>
               <div className={styles.modalActions}>
                 <button type="button" onClick={closeModal} className={styles.cancelButton}>Batal</button>
