@@ -4,7 +4,7 @@
 CREATE DATABASE IF NOT EXISTS jalin_alam CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Use the newly created database
-USE jalin_alam;
+USE jalin_alam_db;
 
 -- Table: products
 CREATE TABLE IF NOT EXISTS products (

@@ -15,7 +15,12 @@ const dbConfig = {
 export async function GET() {
   let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
+    try {
+      connection = await mysql.createConnection(dbConfig);
+    } catch (error) {
+      console.error('Database connection failed:', error);
+      return NextResponse.json({ message: 'Failed to connect to database', error: error.message }, { status: 500 });
+    }
 
     // Fetch products and their images using a JOIN
     const [rows] = await connection.execute(`
@@ -45,7 +50,7 @@ export async function GET() {
 
     return NextResponse.json(products);
   } catch (error) {
-    console.error('Database connection or query failed:', error);
+    console.error('Database query failed:', error);
     return NextResponse.json({ message: 'Failed to fetch products', error: error.message }, { status: 500 });
   } finally {
     if (connection) {
@@ -57,6 +62,7 @@ export async function GET() {
 export async function POST(req) {
   let connection;
   const formData = await req.formData();
+  const id = formData.get('id'); // Get ID for update operations
   const name = formData.get('name');
   const sku = formData.get('sku');
   const category = formData.get('category');
@@ -73,12 +79,26 @@ export async function POST(req) {
     connection = await mysql.createConnection(dbConfig);
     await connection.beginTransaction();
 
-    const [productResult] = await connection.execute(
-      `INSERT INTO products (name, sku, category, description, start_date, deadline) VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, sku, category, description, startDate, deadline]
-    );
+    let productId;
+    if (id) {
+      // Update existing product
+      await connection.execute(
+        `UPDATE products SET name = ?, sku = ?, category = ?, description = ?, start_date = ?, deadline = ? WHERE id = ?`,
+        [name, sku, category, description, startDate, deadline, id]
+      );
+      productId = id;
 
-    const productId = productResult.insertId;
+      // Delete existing images for the product before adding new ones
+      await connection.execute(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
+
+    } else {
+      // Insert new product
+      const [productResult] = await connection.execute(
+        `INSERT INTO products (name, sku, category, description, start_date, deadline) VALUES (?, ?, ?, ?, ?, ?)`,
+        [name, sku, category, description, startDate, deadline]
+      );
+      productId = productResult.insertId;
+    }
 
     if (images && images.length > 0) {
       const uploadDir = path.join(process.cwd(), 'jalin-alam', 'public', 'uploads');
@@ -103,7 +123,7 @@ export async function POST(req) {
     }
 
     await connection.commit();
-    return NextResponse.json({ message: 'Product added successfully', productId }, { status: 201 });
+    return NextResponse.json({ message: `Product ${id ? 'updated' : 'added'} successfully`, productId }, { status: 201 });
 
   } catch (error) {
     if (connection) {
@@ -111,12 +131,12 @@ export async function POST(req) {
     }
     console.error('Failed to process POST request:', error);
 
-    // Check for duplicate entry error
+    // Check for duplicate entry error for SKU
     if (error.code === 'ER_DUP_ENTRY') {
       return NextResponse.json({ message: `SKU '${sku}' sudah ada. Silakan gunakan SKU yang lain.` }, { status: 409 });
     }
 
-    return NextResponse.json({ message: 'Gagal menambahkan produk', error: error.message }, { status: 500 });
+    return NextResponse.json({ message: `Gagal ${id ? 'memperbarui' : 'menambahkan'} produk`, error: error.message }, { status: 500 });
   } finally {
     if (connection) {
       await connection.end();

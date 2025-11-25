@@ -168,7 +168,7 @@ export default function ProductDevelopmentPage() {
     const field = sortField === 'deadline' ? 'deadline' : 'startDate';
     const dateA = new Date(a[field]);
     const dateB = new Date(b[field]);
-    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    return sortDirection === 'asc' ? dateA - dateB : dateB - a[field];
   });
   
   const totalProducts = products.length;
