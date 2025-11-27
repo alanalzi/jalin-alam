@@ -2,20 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import styles from "./product-development.module.css";
-import { FaArrowLeft, FaEdit, FaTrash } from "react-icons/fa";
-
-// Helper to sanitize image paths received from the server
-function sanitizeImagePath(path) {
-  if (typeof path !== 'string') return '';
-  // Sanitize for Windows-style backslashes
-  let correctedPath = path.replace(/\\/g, '/');
-  // Find 'public/' and strip it from the start of the path
-  const publicIndex = correctedPath.indexOf('public/');
-  if (publicIndex !== -1) {
-    return correctedPath.substring(publicIndex + 'public'.length);
-  }
-  return correctedPath;
-}
+import { FaArrowLeft, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
 
 // Helper function to format date strings for input fields
 function formatDateForInput(dateString) {
@@ -29,46 +16,85 @@ function formatDateForInput(dateString) {
 
 export default function ProductDevelopmentPage() {
   const [products, setProducts] = useState([]);
+  const [rawMaterials, setRawMaterials] = useState([]); // Re-introduced rawMaterials state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: null, name: "", sku: "", category: "", description: "", images: [], startDate: "", deadline: "" });
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [formData, setFormData] = useState({ 
+    id: null, 
+    name: "", 
+    sku: "", 
+    category: "", 
+    description: "", 
+    startDate: "", 
+    deadline: "",
+    requiredMaterials: []
+  });
   const [sortOrder, setSortOrder] = useState('deadline-asc');
-  const today = new Date().toISOString().split('T')[0];
+  
+  // State for the new material input
+  const [selectedMaterialId, setSelectedMaterialId] = useState(''); // Changed to selectedMaterialId
+  const [newMaterialQuantity, setNewMaterialQuantity] = useState(1);
 
   async function fetchProducts() {
     try {
       const res = await fetch('/api/products');
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      
-      const data = await res.json();
-      
-      const formattedData = data.map(p => {
-        let images = [];
-        if (typeof p.images === 'string') {
-          try { images = JSON.parse(p.images); } catch (e) { images = [p.images]; }
-        } else if (Array.isArray(p.images)) {
-          images = p.images;
-        }
-        
-        return { ...p, images: Array.isArray(images) ? images.map(sanitizeImagePath) : [] };
-      });
-      setProducts(formattedData);
-
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data);
+      } else {
+        let errorMsg = `HTTP Error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (jsonError) {}
+        throw new Error(errorMsg);
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
+      alert(`Error fetching products: ${error.message}`);
       setProducts([]);
+    }
+  }
+
+  async function fetchRawMaterials() { // Re-introduced fetchRawMaterials
+    try {
+      const res = await fetch('/api/raw-materials');
+      if (res.ok) {
+        const data = await res.json();
+        setRawMaterials(data);
+      } else {
+        let errorMsg = `HTTP Error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (jsonError) {}
+        throw new Error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error fetching raw materials:", error);
+      alert(`Error fetching raw materials: ${error.message}`);
     }
   }
 
   useEffect(() => {
     fetchProducts();
+    fetchRawMaterials(); // Fetch raw materials on mount
   }, []);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
     setIsModalOpen(false);
-    setFormData({ id: null, name: "", sku: "", category: "", description: "", images: [], startDate: "", deadline: "" });
-    setImagePreviews([]);
+    setFormData({ 
+      id: null, 
+      name: "", 
+      sku: "", 
+      category: "", 
+      description: "", 
+      startDate: "", 
+      deadline: "",
+      requiredMaterials: []
+    });
+    setSelectedMaterialId(''); // Reset selected material ID
+    setNewMaterialQuantity(1);
   };
 
   const handleInputChange = (e) => {
@@ -76,167 +102,179 @@ export default function ProductDevelopmentPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      const newImagePreviews = files.map(file => URL.createObjectURL(file));
-      setFormData((prev) => ({ ...prev, images: files }));
-      setImagePreviews(newImagePreviews);
-    } else {
-      setFormData((prev) => ({ ...prev, images: [] }));
-      setImagePreviews([]);
+  const handleAddMaterial = () => {
+    if (!selectedMaterialId || newMaterialQuantity <= 0) {
+      alert("Please select a material and specify a valid quantity.");
+      return;
     }
+    
+    const materialToAdd = rawMaterials.find(m => m.id === parseInt(selectedMaterialId));
+    if (!materialToAdd) {
+        alert("Selected material not found in master list.");
+        return;
+    }
+
+    // Check if material is already added to this product
+    if (formData.requiredMaterials.some(m => m.material_id === materialToAdd.id)) {
+        alert("This material has already been added to this product.");
+        return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      requiredMaterials: [
+        ...prev.requiredMaterials,
+        { 
+          material_id: materialToAdd.id,
+          material_name: materialToAdd.name, // Store name for display, ID for backend
+          quantity_needed: parseInt(newMaterialQuantity)
+        }
+      ]
+    }));
+    setSelectedMaterialId(''); // Clear selection
+    setNewMaterialQuantity(1);
+  };
+
+  const handleRemoveMaterial = (materialId) => { // Removed by ID now
+    setFormData(prev => ({
+      ...prev,
+      requiredMaterials: prev.requiredMaterials.filter(m => m.material_id !== materialId)
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = new FormData();
-    data.append('name', formData.name);
-    data.append('sku', formData.sku);
-    data.append('category', formData.category);
-    data.append('description', formData.description);
-    data.append('startDate', formData.startDate);
-    data.append('deadline', formData.deadline);
-
-    const isEditing = !!formData.id;
-    if (isEditing) {
-      data.append('id', formData.id);
-    }
-
-    const newImageFiles = formData.images.filter(img => img instanceof File);
-    if (newImageFiles.length > 0) {
-      newImageFiles.forEach(file => data.append('images', file));
-    }
+    const url = formData.id ? `/api/products/${formData.id}` : '/api/products';
+    const method = formData.id ? 'PUT' : 'POST';
+    const payload = { ...formData };
 
     try {
-      // Final attempt: All operations (Create and Update) are POST to the collection endpoint.
-      // The backend will differentiate based on the presence of an 'id'.
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        body: data,
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        let errorMessage = `HTTP error! status: ${res.status}`;
+      if (res.ok) {
+        await fetchProducts();
+        closeModal();
+      } else {
+        let errorMsg = `Failed to save product. Status: ${res.status}`;
         try {
-            const errorData = await res.json();
-            errorMessage = errorData.message || errorMessage;
-        } catch (jsonError) {
-            try {
-                errorMessage = await res.text() || errorMessage;
-            } catch (textError) {}
-        }
-        throw new Error(errorMessage);
+          const errorData = await res.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (jsonErr) {}
+        throw new Error(errorMsg);
       }
-      await fetchProducts();
     } catch (error) {
       console.error("Error submitting product:", error);
-      alert(`Failed to save product: ${error.message}`);
+      alert(error.message);
     }
-    closeModal();
   };
 
-  const handleEdit = (product) => {
-    setFormData({
-      ...product,
-      startDate: formatDateForInput(product.startDate),
-      deadline: formatDateForInput(product.deadline),
-    });
-    setImagePreviews(product.images || []);
-    openModal();
+  const handleEdit = async (product) => {
+    try {
+      const res = await fetch(`/api/products/${product.id}`);
+      if(res.ok) {
+        const data = await res.json();
+        setFormData({
+            ...data,
+            startDate: formatDateForInput(data.startDate),
+            deadline: formatDateForInput(data.deadline),
+            requiredMaterials: data.requiredMaterials || []
+        });
+        openModal();
+      } else {
+        let errorMsg = `Failed to fetch product details. Status: ${res.status}`;
+        try {
+            const errorData = await res.json();
+            errorMsg = errorData.message || errorMsg;
+        } catch(e) {}
+        throw new Error(errorMsg);
+      }
+    } catch (error) {
+        console.error("Error in handleEdit:", error);
+        alert(error.message);
+    }
   };
 
   const handleDelete = async (productId) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
+    console.log("Attempting to delete product with ID:", productId); // Added log
+    if (!confirm('Are you sure you want to delete this product?')) return;
     try {
       const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Gagal menghapus produk');
+      if (res.ok) {
+        await fetchProducts();
+      } else {
+        let errorMsg = `Failed to delete. Status: ${res.status}`;
+        try {
+            const errorData = await res.json();
+            errorMsg = errorData.message || errorMsg;
+        } catch(e) {}
+        throw new Error(errorMsg);
       }
-      await fetchProducts();
     } catch (err) {
+      console.error("Error in handleDelete:", err);
       alert(`Error: ${err.message}`);
     }
   };
-
-  const todayForComparison = new Date();
-  todayForComparison.setHours(0, 0, 0, 0);
 
   const sortedProducts = [...products].sort((a, b) => {
     const [sortField, sortDirection] = sortOrder.split('-');
     const field = sortField === 'deadline' ? 'deadline' : 'startDate';
     const dateA = new Date(a[field]);
     const dateB = new Date(b[field]);
-    return sortDirection === 'asc' ? dateA - dateB : dateB - a[field];
+    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
   });
   
-  const totalProducts = products.length;
-  const lateProductsCount = products.filter(p => new Date(p.deadline) < todayForComparison).length;
-  const ongoingProductsCount = totalProducts - lateProductsCount;
-
   return (
     <div className={styles.pageContainer}>
       <div className={styles.backButtonContainer}>
-        <Link href="/dashboard" className={styles.backButton}><FaArrowLeft size={20} /><span>Kembali</span></Link>
+        <Link href="/dashboard" className={styles.backButton}><FaArrowLeft size={20} /><span>Back</span></Link>
       </div>
       <h1 className={styles.title}>Product Development</h1>
       
-      <div className={styles.overviewContainer} style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px' }}>
-        <div className={styles.overviewCard} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', textAlign: 'center', minWidth: '150px' }}>
-          <h3>Total Products</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalProducts}</p>
-        </div>
-        <div className={styles.overviewCard} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', textAlign: 'center', minWidth: '150px' }}>
-          <h3>Ongoing</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{ongoingProductsCount}</p>
-        </div>
-        <div className={styles.overviewCard} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', textAlign: 'center', minWidth: '150px' }}>
-          <h3>Late</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{lateProductsCount}</p>
-        </div>
-      </div>
-
       <div className={styles.toolbar}>
         <div className={styles.sortContainer}>
           <label htmlFor="sort-select">Sort by:</label>
           <select id="sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={styles.sortSelect}>
             <option value="deadline-asc">Deadline (Soonest First)</option>
             <option value="deadline-desc">Deadline (Latest First)</option>
-            <option value="start-asc">Start Date (Oldest First)</option>
-            <option value="start-desc">Start Date (Newest First)</option>
           </select>
         </div>
-        <button onClick={openModal} className={styles.addButton}>Tambah Produk</button>
+        <button onClick={openModal} className={styles.addButton}>Add Product</button>
       </div>
 
       <div className={styles.tableContainer}>
         <table className={styles.productTable}>
           <thead>
             <tr>
-              <th>Gambar</th><th>Nama Produk</th><th>SKU</th><th>Kategori</th><th>Deskripsi</th><th>Tanggal Mulai</th><th>Deadline</th><th>Status</th><th>Aksi</th>
+              <th>Image</th><th>Product Name</th><th>SKU</th><th>Category</th><th>Start Date</th><th>Deadline</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {sortedProducts.map((product) => {
-              const isLate = new Date(product.deadline) < todayForComparison;
-              const status = isLate ? "Late" : "Ongoing";
-              return (
+            {sortedProducts.map((product) => (
                 <tr key={product.id}>
                   <td>
-                    <div className={styles.productImageContainer}>
-                      {product.images.map((imgSrc, index) => (
-                        <img key={index} src={imgSrc} alt={`${product.name} ${index + 1}`} width={50} height={50} className={styles.productImage} />
-                      ))}
-                    </div>
+                    <img 
+                      src={product.images && product.images.length > 0 ? product.images[0] : 'https://via.placeholder.com/50'} 
+                      alt={product.name} 
+                      width={50} 
+                      height={50} 
+                      style={{objectFit: 'cover'}}
+                    />
                   </td>
-                  <td>{product.name}</td><td>{product.sku}</td><td>{product.category}</td><td>{product.description}</td>
-                  <td>{formatDateForInput(product.startDate)}</td><td>{formatDateForInput(product.deadline)}</td>
-                  <td><span className={`${styles.status} ${isLate ? styles.late : styles.ongoing}`}>{status}</span></td>
+                  <td><Link href={`/product/${product.id}`}>{product.name}</Link></td>
+                  <td>{product.sku}</td>
+                  <td>{product.category}</td>
+                  <td>{formatDateForInput(product.startDate)}</td>
+                  <td>{formatDateForInput(product.deadline)}</td>
                   <td className={styles.actionButtons}>
                     <button onClick={() => handleEdit(product)}><FaEdit /></button>
                     <button onClick={() => handleDelete(product.id)}><FaTrash /></button>
                   </td>
                 </tr>
-              );
-            })}
+              ))}
           </tbody>
         </table>
       </div>
@@ -244,26 +282,49 @@ export default function ProductDevelopmentPage() {
       {isModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{formData.id ? "Edit Produk" : "Tambah Produk Baru"}</h2>
+            <h2 className={styles.modalTitle}>{formData.id ? "Edit Product" : "Add New Product"}</h2>
             <form onSubmit={handleSubmit}>
-              <div className={styles.formGroup}><label>Nama Produk</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Product Name</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} required /></div>
               <div className={styles.formGroup}><label>SKU</label><input type="text" name="sku" value={formData.sku} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Kategori</label><input type="text" name="category" value={formData.category} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Deskripsi</label><textarea name="description" value={formData.description} onChange={handleInputChange} rows="3"></textarea></div>
-              <div className={styles.formGroup}><label>Tanggal Mulai</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required min={today} /></div>
-              <div className={styles.formGroup}><label>Deadline</label><input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required max="2099-12-31" /></div>
+              <div className={styles.formGroup}><label>Category</label><input type="text" name="category" value={formData.category} onChange={handleInputChange} /></div>
+              <div className={styles.formGroup}><label>Description</label><textarea name="description" value={formData.description} onChange={handleInputChange}></textarea></div>
+              <div className={styles.formGroup}><label>Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Deadline</label><input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required /></div>
+              
               <div className={styles.formGroup}>
-                <label>Gambar Produk</label>
-                <input type="file" name="images" onChange={handleFileChange} multiple />
-                <div className={styles.imagePreviewContainer}>
-                  {imagePreviews.map((previewUrl, index) => (
-                    <img key={index} src={previewUrl} alt={`Preview ${index + 1}`} width={100} height={100} style={{ marginTop: '10px', marginRight: '10px' }} />
-                  ))}
+                <h3>Required Materials</h3>
+                <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
+                  <select 
+                    value={selectedMaterialId} 
+                    onChange={e => setSelectedMaterialId(e.target.value)}
+                    style={{flex: 2}}
+                  >
+                    <option value="">-- Select Material --</option>
+                    {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                  <input 
+                    type="number"
+                    value={newMaterialQuantity}
+                    onChange={e => setNewMaterialQuantity(e.target.value)}
+                    min="1"
+                    placeholder="Qty"
+                    style={{flex: 1}}
+                  />
+                  <button type="button" onClick={handleAddMaterial} className={styles.addButton}><FaPlus/></button>
                 </div>
+                <ul>
+                  {formData.requiredMaterials.map(m => (
+                    <li key={m.material_id}>
+                      {m.material_name} ({m.quantity_needed})
+                      <button type="button" onClick={() => handleRemoveMaterial(m.material_id)} style={{marginLeft: '10px', color: 'red'}}><FaTrash/></button>
+                    </li>
+                  ))}
+                </ul>
               </div>
+
               <div className={styles.modalActions}>
-                <button type="button" onClick={closeModal} className={styles.cancelButton}>Batal</button>
-                <button type="submit" className={styles.saveButton}>Simpan</button>
+                <button type="button" onClick={closeModal} className={styles.cancelButton}>Cancel</button>
+                <button type="submit" className={styles.saveButton}>Save</button>
               </div>
             </form>
           </div>

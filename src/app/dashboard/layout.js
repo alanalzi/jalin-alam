@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"; // Add Link import
 import { useSession, signOut } from "next-auth/react"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect } from "react"
@@ -44,31 +45,35 @@ export default function DashboardLayout({ children, centerContent = false }) {
           </div>
 
           <div className={styles.sidebarMenu}>
-            <a href="/product" className={`${styles.sidebarMenuItem} ${pathname === '/product' ? styles.active : ''}`}>
+            <Link href="/product" className={`${styles.sidebarMenuItem} ${pathname === '/product' ? styles.active : ''}`}>
               <FaBoxOpen className={styles.menuIcon} />
               <span>Product Development</span>
-            </a>
-            <a href="/inquiry" className={`${styles.sidebarMenuItem} ${pathname === '/inquiry' ? styles.active : ''}`}>
+            </Link>
+            <Link href="/inquiry" className={`${styles.sidebarMenuItem} ${pathname === '/inquiry' ? styles.active : ''}`}>
               <FaFileInvoice className={styles.menuIcon} />
               <span>Inquiry Management</span>
-            </a>
-            <a href="/settings" className={`${styles.sidebarMenuItem} ${pathname === '/settings' ? styles.active : ''}`}>
+            </Link>
+            <Link href="/settings" className={`${styles.sidebarMenuItem} ${pathname === '/settings' ? styles.active : ''}`}>
               <FaCog className={styles.menuIcon} />
               <span>Setting & Report</span>
-            </a>
+            </Link>
+            <Link href="/raw-materials" className={`${styles.sidebarMenuItem} ${pathname === '/raw-materials' ? styles.active : ''}`}>
+              <FaBoxOpen className={styles.menuIcon} /> {/* Using FaBoxOpen for materials */}
+              <span>Manage Raw Materials</span>
+            </Link>
 
             {(role === "admin" || role === "direktur") && (
-              <a href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
+              <Link href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
                 <FaUsersCog className={styles.menuIcon} />
                 <span>Production Management</span>
-              </a>
+              </Link>
             )}
 
             {(role === "direktur") && (
-              <a href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
+              <Link href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
                 <FaUserShield className={styles.menuIcon} />
                 <span>User Management</span>
-              </a>
+              </Link>
             )}
           </div>
         </div>

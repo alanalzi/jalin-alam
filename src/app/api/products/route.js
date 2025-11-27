@@ -1,28 +1,19 @@
 // jalin-alam/src/app/api/products/route.js
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
-import path from 'path';
-import { promises as fs } from 'fs';
 
 // Database connection configuration
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '', // Replace with your MySQL password
-  database: process.env.DB_NAME || 'jalin_alam',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'jalin_alam_db',
 };
 
 export async function GET() {
   let connection;
   try {
-    try {
-      connection = await mysql.createConnection(dbConfig);
-    } catch (error) {
-      console.error('Database connection failed:', error);
-      return NextResponse.json({ message: 'Failed to connect to database', error: error.message }, { status: 500 });
-    }
-
-    // Fetch products and their images using a JOIN
+    connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(`
       SELECT
         p.id,
@@ -41,7 +32,7 @@ export async function GET() {
         p.id, p.name, p.sku, p.category, p.description, p.start_date, p.deadline
       ORDER BY p.id DESC
     `);
-
+    
     // Process rows to group images into an array for each product
     const products = rows.map(row => ({
       ...row,
@@ -61,15 +52,7 @@ export async function GET() {
 
 export async function POST(req) {
   let connection;
-  const formData = await req.formData();
-  const id = formData.get('id'); // Get ID for update operations
-  const name = formData.get('name');
-  const sku = formData.get('sku');
-  const category = formData.get('category');
-  const description = formData.get('description');
-  const startDate = formData.get('startDate');
-  const deadline = formData.get('deadline');
-  const images = formData.getAll('images');
+  const { name, sku, category, description, startDate, deadline, requiredMaterials } = await req.json();
 
   try {
     if (!name || !sku) {
@@ -79,51 +62,61 @@ export async function POST(req) {
     connection = await mysql.createConnection(dbConfig);
     await connection.beginTransaction();
 
-    let productId;
-    if (id) {
-      // Update existing product
-      await connection.execute(
-        `UPDATE products SET name = ?, sku = ?, category = ?, description = ?, start_date = ?, deadline = ? WHERE id = ?`,
-        [name, sku, category, description, startDate, deadline, id]
-      );
-      productId = id;
+    // Insert new product
+    const [productResult] = await connection.execute(
+      `INSERT INTO products (name, sku, category, description, start_date, deadline) VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, sku, category, description, startDate, deadline]
+    );
+    const productId = productResult.insertId;
 
-      // Delete existing images for the product before adding new ones
-      await connection.execute(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
+    // Handle required materials with upsert logic
+    if (requiredMaterials && requiredMaterials.length > 0) {
+      for (const material of requiredMaterials) {
+        // Find existing raw material (case-insensitive)
+        const [existing] = await connection.execute(
+          'SELECT id, stock_quantity FROM raw_materials WHERE LOWER(name) = LOWER(?)',
+          [material.material_name]
+        );
 
-    } else {
-      // Insert new product
-      const [productResult] = await connection.execute(
-        `INSERT INTO products (name, sku, category, description, start_date, deadline) VALUES (?, ?, ?, ?, ?, ?)`,
-        [name, sku, category, description, startDate, deadline]
-      );
-      productId = productResult.insertId;
-    }
-
-    if (images && images.length > 0) {
-      const uploadDir = path.join(process.cwd(), 'jalin-alam', 'public', 'uploads');
-      await fs.mkdir(uploadDir, { recursive: true });
-
-      for (const image of images) {
-        if (image instanceof File) {
-          const buffer = Buffer.from(await image.arrayBuffer());
-          const uniqueFilename = `${Date.now()}-${image.name.replace(/\s+/g, '_')}`;
-          const savePath = path.join(uploadDir, uniqueFilename);
-          
-          await fs.writeFile(savePath, buffer);
-          
-          const imageUrl = `/uploads/${uniqueFilename}`;
-          
-          await connection.execute(
-            `INSERT INTO product_images (product_id, image_url) VALUES (?, ?)`,
-            [productId, imageUrl]
+        let materialId;
+        let currentStock = 0;
+        if (existing.length > 0) {
+          materialId = existing[0].id;
+          currentStock = existing[0].stock_quantity;
+        } else {
+          // Insert new raw material if it doesn't exist
+          const [newMaterial] = await connection.execute(
+            'INSERT INTO raw_materials (name, stock_quantity) VALUES (?, ?)',
+            [material.material_name, 0] // Default stock to 0 for new materials
           );
+          materialId = newMaterial.insertId;
         }
+
+        // Check for sufficient stock before linking
+        if (currentStock < material.quantity_needed) {
+            await connection.rollback();
+            return NextResponse.json(
+                { message: `Insufficient stock for material '${material.material_name}'. Needed: ${material.quantity_needed}, Available: ${currentStock}` },
+                { status: 400 }
+            );
+        }
+
+        // Decrement stock quantity in raw_materials
+        await connection.execute(
+            'UPDATE raw_materials SET stock_quantity = stock_quantity - ? WHERE id = ?',
+            [material.quantity_needed, materialId]
+        );
+
+        // Link product to the material
+        await connection.execute(
+          'INSERT INTO product_materials (product_id, material_id, quantity_needed) VALUES (?, ?, ?)',
+          [productId, materialId, material.quantity_needed]
+        );
       }
     }
 
     await connection.commit();
-    return NextResponse.json({ message: `Product ${id ? 'updated' : 'added'} successfully`, productId }, { status: 201 });
+    return NextResponse.json({ message: 'Product added successfully', productId }, { status: 201 });
 
   } catch (error) {
     if (connection) {
@@ -131,15 +124,15 @@ export async function POST(req) {
     }
     console.error('Failed to process POST request:', error);
 
-    // Check for duplicate entry error for SKU
     if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json({ message: `SKU '${sku}' sudah ada. Silakan gunakan SKU yang lain.` }, { status: 409 });
+      return NextResponse.json({ message: `SKU '${sku}' already exists. Please use a different SKU.` }, { status: 409 });
     }
 
-    return NextResponse.json({ message: `Gagal ${id ? 'memperbarui' : 'menambahkan'} produk`, error: error.message }, { status: 500 });
+    return NextResponse.json({ message: 'Failed to add product', error: error.message }, { status: 500 });
   } finally {
     if (connection) {
       await connection.end();
     }
   }
 }
+
