@@ -1,0 +1,232 @@
+/* jalin-alam/src/app/product/[id]/product-detail.module.css */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.backLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  color: #3b82f6; /* blue-500 */
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease-in-out;
+}
+
+.backLink:hover {
+  color: #2563eb; /* blue-600 */
+}
+
+.productName {
+  font-size: 2.25rem; /* text-4xl */
+  font-weight: 700; /* font-bold */
+  margin-bottom: 1.5rem;
+  color: #1f2937; /* gray-800 */
+}
+
+.imageGallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.productImage {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.productInfo {
+  margin-bottom: 1rem;
+  color: #374151; /* gray-700 */
+}
+
+.productInfo strong {
+  font-weight: 600;
+}
+
+.section {
+  margin-top: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.75rem; /* text-2xl */
+  font-weight: 600; /* font-semibold */
+  margin-bottom: 1rem;
+  color: #1f2937; /* gray-800 */
+}
+
+.supplierTable {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden; /* Ensures rounded corners are applied to table content */
+}
+
+.supplierTable th,
+.supplierTable td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb; /* border-b */
+}
+
+.supplierTable th {
+  background-color: #f3f4f6; /* gray-100 */
+  font-weight: 600;
+  color: #4b5563; /* gray-700 */
+}
+
+.supplierTable tbody tr:last-child td {
+  border-bottom: none; /* remove border from last row */
+}
+
+.noMaterials {
+  color: #6b7280; /* gray-600 */
+  font-style: italic;
+  padding-left: 1rem;
+}
+
+.checklist {
+  margin-bottom: 1rem;
+}
+
+.checklistTask {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f9fafb; /* gray-50 */
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease-in-out;
+}
+
+.checklistTask:hover {
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+.checklistCheckbox {
+  height: 1.25rem; /* h-5 */
+  width: 1.25rem; /* w-5 */
+  accent-color: #3b82f6; /* text-blue-600 (for native checkbox styling) */
+}
+
+.checklistText {
+  flex-grow: 1;
+  font-size: 1.125rem; /* text-lg */
+  color: #1f2937; /* gray-800 */
+}
+
+.checklistText.completed {
+  text-decoration: line-through;
+  color: #6b7280; /* gray-500 */
+}
+
+.deleteButton {
+  color: #ef4444; /* red-500 */
+  border: none;
+  background: none;
+  padding: 0.5rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.deleteButton:hover {
+  color: #dc2626; /* red-700 */
+  background-color: #fee2e2; /* red-100 */
+  transform: scale(1.1);
+}
+
+.addTaskForm {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.addTaskInput {
+  flex-grow: 1;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db; /* border-gray-300 */
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.addTaskInput:focus {
+  outline: none;
+  border-color: #3b82f6; /* ring-blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); /* ring-blue-500 with opacity */
+}
+
+.addTaskButton {
+  background-color: #3b82f6; /* blue-500 */
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.addTaskButton:hover {
+  background-color: #2563eb; /* blue-600 */
+  transform: translateY(-1px);
+}
+
+.saveButton {
+  background-color: #10b981; /* green-600 */
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  margin-top: 2rem;
+}
+
+.saveButton:hover {
+  background-color: #059669; /* green-700 */
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.statusOngoing {
+  background-color: #d1fae5; /* Light green background */
+  color: #065f46; /* Dark green text */
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px; /* Pill shape */
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.statusLate {
+  background-color: #fee2e2; /* Light red background */
+  color: #991b1b; /* Dark red text */
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px; /* Pill shape */
+  font-weight: 600;
+  font-size: 0.875rem;
+}

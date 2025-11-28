@@ -346,8 +346,8 @@ export default function ProductDevelopmentPage() {
       </div>
 
       {isModalOpen && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+        <div key="product-modal-overlay" className={styles.modalOverlay}>
+          <div key="product-modal-content" className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{formData.id ? "Edit Product" : "Add New Product"}</h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}><label>Product Name</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} required /></div>

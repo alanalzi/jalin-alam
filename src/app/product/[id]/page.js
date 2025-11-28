@@ -1,9 +1,9 @@
-// jalin-alam/src/app/product/[id]/page.js
 "use client";
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation'; // Import useRouter
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FaArrowLeft, FaPlus, FaSave, FaTrash } from 'react-icons/fa';
+import styles from './product-detail.module.css'; // Import the CSS module
 
 // Helper function to format date strings for database (YYYY-MM-DD)
 function formatDateForDatabase(dateString) {
@@ -16,9 +16,21 @@ function formatDateForDatabase(dateString) {
   return `${year}-${month}-${day}`;
 }
 
+// Helper function to format date strings for input fields (Copy from product/page.js)
+function formatDateForInput(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  // Ensure the date is valid before formatting
+  if (isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams();
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
   const [product, setProduct] = useState(null);
   const [checklist, setChecklist] = useState([]);
   const [requiredMaterials, setRequiredMaterials] = useState([]);
@@ -120,7 +132,43 @@ export default function ProductDetailPage() {
     }
   };
 
+  // Helper function to determine the status (Ongoing/Late) based solely on deadline
+  const getStatus = (deadline) => {
+    if (!deadline) return 'Ongoing'; // No deadline, assume ongoing
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today's date to start of day
+
+    const deadlineDate = new Date(deadline);
+    // Ensure the deadlineDate is a valid date object before comparison
+    if (isNaN(deadlineDate.getTime())) {
+      // If deadline is invalid, fall back to default or a specific error status
+      // For now, let's assume 'Ongoing' if the date is invalid and cannot be compared.
+      return 'Ongoing'; 
+    }
+    deadlineDate.setHours(0, 0, 0, 0); // Normalize deadline date to start of day
+    
+    if (deadlineDate < today) {
+      return 'Late';
+    }
+    return 'Ongoing';
+  };
+
+  // Helper to get CSS class for status
+  const getStatusClassName = (deadline) => { // Removed productStatus
+    const status = getStatus(deadline); // Removed productStatus
+    if (status === 'Late') {
+      return styles.statusLate;
+    } else if (status === 'Ongoing') {
+      return styles.statusOngoing;
+    }
+    return '';
+  };
+
+  // Helper to get display text for status
+  const getDisplayStatus = (deadline) => { // Removed productStatus
+    return getStatus(deadline); // Removed productStatus
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -131,14 +179,14 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <Link href="/product" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+    <div className={styles.container}>
+      <Link href="/product" className={styles.backLink}>
         <FaArrowLeft />
         <span>Back to Product Development</span>
       </Link>
       
-      <h1>{product.name}</h1>
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: '10px' }}>
+      <h1 className={styles.productName}>{product.name}</h1>
+      <div className={styles.imageGallery}>
         {product.images && product.images.length > 0 ? (
           product.images.map((image, index) => (
             <img 
@@ -147,7 +195,7 @@ export default function ProductDetailPage() {
               alt={`${product.name} image ${index + 1}`} 
               width={150} 
               height={150} 
-              style={{ objectFit: 'cover', borderRadius: '5px' }} 
+              className={styles.productImage} 
             />
           ))
         ) : (
@@ -156,78 +204,84 @@ export default function ProductDetailPage() {
             alt="No Product Image" 
             width={150} 
             height={150} 
-            style={{ objectFit: 'cover', borderRadius: '5px' }} 
+            className={styles.productImage} 
           />
         )}
       </div>
-      <p><strong>SKU:</strong> {product.sku}</p>
-      <p><strong>Category:</strong> {product.category}</p>
-      <p><strong>Description:</strong> {product.description}</p>
+      <p className={styles.productInfo}><strong>SKU:</strong> {product.sku}</p>
+      <p className={styles.productInfo}><strong>Category:</strong> {product.category}</p>
+      <p className={styles.productInfo}><strong>Start Date:</strong> {formatDateForInput(product.start_date)}</p>
+      <p className={styles.productInfo}><strong>Deadline:</strong> {formatDateForInput(product.deadline)}</p>
+      <p className={styles.productInfo}>
+        <strong>Status:</strong> <span className={getStatusClassName(product.deadline)}>{getDisplayStatus(product.deadline)}</span>
+      </p>
+      <p className={styles.productInfo}><strong>Description:</strong> {product.description}</p>
       
       
-      <div style={{ marginTop: '2rem' }}>
-        <h2>Supplier</h2>
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Supplier</h2>
         {requiredMaterials.length > 0 ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className={styles.supplierTable}>
             <thead>
               <tr>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Supplier Name</th>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Supplier Description</th>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Contact Info</th>
+                <th>Supplier Name</th>
+                <th>Supplier Description</th>
+                <th>Contact Info</th>
               </tr>
             </thead>
             <tbody>
               {requiredMaterials.map((material) => (
                 <tr key={material.material_id}>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.material_name}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.supplier_description}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.contact_info_text}</td>
+                  <td>{material.material_name}</td>
+                  <td>{material.supplier_description}</td>
+                  <td>{material.contact_info_text}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p>No raw materials required for this product.</p>
+          <p className={styles.noMaterials}>No raw materials required for this product.</p>
         )}
       </div>
 
-      <div style={{ marginTop: '2rem' }}>
-        <h2>Production Checklist</h2>
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Production Checklist</h2>
         
-        <div style={{ marginBottom: '1rem' }}>
+        <div className={styles.checklist}>
           {checklist.map((task) => (
-            <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+            <div key={task.id} className={styles.checklistTask}>
               <input
                 type="checkbox"
                 checked={task.is_completed}
                 onChange={() => handleChecklistChange(task.id)}
+                className={styles.checklistCheckbox}
               />
-              <span style={{ textDecoration: task.is_completed ? 'line-through' : 'none' }}>
+              <span className={`${styles.checklistText} ${task.is_completed ? styles.completed : ''}`}>
                 {task.task}
               </span>
-              <button onClick={() => handleDeleteTask(task.id)} style={{ color: 'red' }}>
+              <button onClick={() => handleDeleteTask(task.id)} className={styles.deleteButton}>
                 <FaTrash />
               </button>
             </div>
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+        <div className={styles.addTaskForm}>
           <input
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
             placeholder="Add new production task"
-            style={{ flexGrow: 1, padding: '0.5rem' }}
+            className={styles.addTaskInput}
           />
-          <button onClick={handleAddTask} style={{ padding: '0.5rem 1rem' }}>
+          <button onClick={handleAddTask} className={styles.addTaskButton}>
             <FaPlus /> Add Task
           </button>
         </div>
       </div>
       
-      <div style={{ marginTop: '2rem' }}>
-        <button onClick={handleSaveChanges} style={{ padding: '0.75rem 1.5rem', backgroundColor: 'blue', color: 'white', border: 'none', borderRadius: '5px' }}>
+      <div className={styles.section}>
+        <button onClick={handleSaveChanges} className={styles.saveButton}>
           <FaSave /> Save Checklist Changes
         </button>
       </div>

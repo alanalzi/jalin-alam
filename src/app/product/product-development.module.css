@@ -97,6 +97,29 @@
   vertical-align: middle;
 }
 
+.productTable th:nth-child(2),
+.productTable td:nth-child(2) { /* Targeting the Product Name column */
+  width: 25%; /* Give it more space */
+  min-width: 150px; /* Ensure it's not too small */
+  max-width: 300px; /* Prevent it from taking too much space */
+}
+
+.productTable td:nth-child(2) a { /* Styling the product name link */
+  font-size: 1.1rem; /* Slightly larger font */
+  font-weight: 600; /* Bolder */
+  color: #f0f0f0; /* Ensure good contrast */
+  text-decoration: none; /* Remove default underline */
+  display: block; /* Allow padding and margin */
+  word-wrap: break-word; /* Ensure long words break */
+  white-space: normal; /* Ensure text wraps normally */
+  transition: color 0.2s ease-in-out;
+}
+
+.productTable td:nth-child(2) a:hover {
+  color: #2c7a7b; /* Highlight on hover */
+  text-decoration: underline; /* Add underline on hover */
+}
+
 .productTable th {
   font-weight: 600;
   text-align: center; /* Center the table headers */
