@@ -16,7 +16,7 @@ export default function Navbar() {
       <Link href="/product" style={{ color: 'white', textDecoration: 'none' }}>
         Product Development
       </Link>
-      <Link href="/raw-materials" style={{ color: 'white', textDecoration: 'none' }}>
+      <Link href="/supplier" style={{ color: 'white', textDecoration: 'none' }}>
         Manage Raw Materials
       </Link>
     </nav>

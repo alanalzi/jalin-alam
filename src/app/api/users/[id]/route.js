@@ -1,5 +1,7 @@
 import connectDB from '@/app/lib/db';
-import User from '@/app/models/User';
+
+
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';

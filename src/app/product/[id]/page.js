@@ -46,7 +46,7 @@ export default function ProductDetailPage() {
     } catch (error) {
       console.error("Error fetching product:", error);
       setProduct(null);
-      alert(`Error fetching product: ${error.message}`);
+      alert(`Error fetching product: ${String(error.message)}`);
     } finally {
       setLoading(false);
     }
@@ -111,17 +111,16 @@ export default function ProductDetailPage() {
           const errorData = await res.json();
           errorMsg = errorData.message || errorMsg;
         } catch (e) {}
-        throw new Error(errorMsg);
+        console.error(errorMsg);
+        alert(errorMsg);
       }
     } catch (error) {
       console.error("Error saving changes:", error);
-      alert(error.message);
+      alert(String(error.message));
     }
   };
 
-  const areAllMaterialsInStock = requiredMaterials.every(
-    (material) => material.stock_quantity >= material.quantity_needed
-  );
+
 
   if (loading) {
     return <div>Loading...</div>;
@@ -167,30 +166,22 @@ export default function ProductDetailPage() {
       
       
       <div style={{ marginTop: '2rem' }}>
-        <h2>Required Raw Materials</h2>
+        <h2>Supplier</h2>
         {requiredMaterials.length > 0 ? (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Material</th>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Needed</th>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>In Stock</th>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Status</th>
+                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Supplier Name</th>
+                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Supplier Description</th>
+                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Contact Info</th>
               </tr>
             </thead>
             <tbody>
               {requiredMaterials.map((material) => (
                 <tr key={material.material_id}>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.material_name}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.quantity_needed}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.stock_quantity}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {material.stock_quantity >= material.quantity_needed ? (
-                      <span style={{ color: 'green' }}>Available</span>
-                    ) : (
-                      <span style={{ color: 'red', fontWeight: 'bold' }}>Insufficient</span>
-                    )}
-                  </td>
+                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.supplier_description}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{material.contact_info_text}</td>
                 </tr>
               ))}
             </tbody>
@@ -203,12 +194,6 @@ export default function ProductDetailPage() {
       <div style={{ marginTop: '2rem' }}>
         <h2>Production Checklist</h2>
         
-        {!areAllMaterialsInStock && requiredMaterials.length > 0 && (
-          <p style={{ color: 'red', fontWeight: 'bold' }}>
-            Production checklist is disabled until all required materials are in stock.
-          </p>
-        )}
-
         <div style={{ marginBottom: '1rem' }}>
           {checklist.map((task) => (
             <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
@@ -216,12 +201,11 @@ export default function ProductDetailPage() {
                 type="checkbox"
                 checked={task.is_completed}
                 onChange={() => handleChecklistChange(task.id)}
-                disabled={!areAllMaterialsInStock}
               />
               <span style={{ textDecoration: task.is_completed ? 'line-through' : 'none' }}>
                 {task.task}
               </span>
-              <button onClick={() => handleDeleteTask(task.id)} style={{ color: 'red' }} disabled={!areAllMaterialsInStock}>
+              <button onClick={() => handleDeleteTask(task.id)} style={{ color: 'red' }}>
                 <FaTrash />
               </button>
             </div>
@@ -235,9 +219,8 @@ export default function ProductDetailPage() {
             onChange={(e) => setNewTask(e.target.value)}
             placeholder="Add new production task"
             style={{ flexGrow: 1, padding: '0.5rem' }}
-            disabled={!areAllMaterialsInStock}
           />
-          <button onClick={handleAddTask} style={{ padding: '0.5rem 1rem' }} disabled={!areAllMaterialsInStock}>
+          <button onClick={handleAddTask} style={{ padding: '0.5rem 1rem' }}>
             <FaPlus /> Add Task
           </button>
         </div>

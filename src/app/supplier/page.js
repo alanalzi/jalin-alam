@@ -4,14 +4,14 @@ import Link from "next/link";
 import styles from "../product/product-development.module.css"; // Reusing styles for now
 import { FaArrowLeft, FaEdit, FaTrash } from "react-icons/fa";
 
-export default function RawMaterialPage() {
+export default function SupplierPage() {
   const [materials, setMaterials] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: null, name: "", stock_quantity: 0 });
+  const [formData, setFormData] = useState({ id: null, name: "", contact_info_text: "", supplier_description: "" });
 
   async function fetchMaterials() {
     try {
-      const res = await fetch('/api/raw-materials');
+      const res = await fetch('/api/supplier');
       if (res.ok) {
         const data = await res.json();
         setMaterials(data);
@@ -26,8 +26,8 @@ export default function RawMaterialPage() {
         throw new Error(errorMsg);
       }
     } catch (error) {
-      console.error("Error fetching raw materials:", error);
-      alert(`Error fetching raw materials: ${error.message}`);
+      console.error("Error fetching suppliers:", error);
+      alert(`Error fetching suppliers: ${error.message}`);
       setMaterials([]);
     }
   }
@@ -39,7 +39,7 @@ export default function RawMaterialPage() {
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
     setIsModalOpen(false);
-    setFormData({ id: null, name: "", stock_quantity: 0 });
+    setFormData({ id: null, name: "", contact_info_text: "", supplier_description: "" });
   };
 
   const handleInputChange = (e) => {
@@ -49,22 +49,22 @@ export default function RawMaterialPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { id, name, stock_quantity } = formData;
-    const url = id ? `/api/raw-materials/${id}` : '/api/raw-materials';
+    const { id, name, contact_info_text, supplier_description } = formData;
+    const url = id ? `/api/supplier/${id}` : '/api/supplier';
     const method = id ? 'PUT' : 'POST';
 
     try {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, stock_quantity }),
+        body: JSON.stringify({ name, contact_info_text, supplier_description }),
       });
 
       if (res.ok) {
         await fetchMaterials();
         closeModal();
       } else {
-        let errorMsg = `Failed to save raw material. Status: ${res.status}`;
+        let errorMsg = `Failed to save supplier. Status: ${res.status}`;
         try {
           const errorData = await res.json();
           errorMsg = errorData.message || errorMsg;
@@ -85,9 +85,9 @@ export default function RawMaterialPage() {
   };
 
   const handleDelete = async (materialId) => {
-    if (!confirm('Are you sure you want to delete this raw material?')) return;
+    if (!confirm('Are you sure you want to delete this supplier?')) return;
     try {
-      const res = await fetch(`/api/raw-materials/${materialId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/supplier/${materialId}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchMaterials();
       } else {
@@ -111,10 +111,10 @@ export default function RawMaterialPage() {
       <div className={styles.backButtonContainer}>
         <Link href="/dashboard" className={styles.backButton}><FaArrowLeft size={20} /><span>Back to Dashboard</span></Link>
       </div>
-      <h1 className={styles.title}>Raw Material Management</h1>
+      <h1 className={styles.title}>Supplier Management</h1>
 
       <div className={styles.toolbar}>
-        <button onClick={openModal} className={styles.addButton}>Add Raw Material</button>
+        <button onClick={openModal} className={styles.addButton}>Add Supplier</button>
       </div>
 
       <div className={styles.tableContainer}>
@@ -122,7 +122,8 @@ export default function RawMaterialPage() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Stock Quantity</th>
+              <th>Contact Info</th>
+              <th>Supplier Description</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -130,7 +131,8 @@ export default function RawMaterialPage() {
             {materials.map((material) => (
               <tr key={material.id}>
                 <td>{material.name}</td>
-                <td>{material.stock_quantity}</td>
+                <td>{material.contact_info_text}</td>
+                <td>{material.supplier_description}</td>
                 <td className={styles.actionButtons}>
                   <button onClick={() => handleEdit(material)}><FaEdit /></button>
                   <button onClick={() => handleDelete(material.id)}><FaTrash /></button>
@@ -144,15 +146,19 @@ export default function RawMaterialPage() {
       {isModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{formData.id ? "Edit Raw Material" : "Add New Raw Material"}</h2>
+            <h2 className={styles.modalTitle}>{formData.id ? "Edit Supplier" : "Add New Supplier"}</h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}>
                 <label>Name</label>
                 <input type="text" name="name" value={formData.name} onChange={handleInputChange} required />
               </div>
               <div className={styles.formGroup}>
-                <label>Stock Quantity</label>
-                <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleInputChange} required />
+                <label>Contact Info (Phone/Email)</label>
+                <input type="text" name="contact_info_text" value={formData.contact_info_text} onChange={handleInputChange} />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Supplier Description</label>
+                <input type="text" name="supplier_description" value={formData.supplier_description} onChange={handleInputChange} required />
               </div>
               <div className={styles.modalActions}>
                 <button type="button" onClick={closeModal} className={styles.cancelButton}>Cancel</button>

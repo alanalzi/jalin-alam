@@ -26,13 +26,15 @@ export default function ProductDevelopmentPage() {
     description: "", 
     startDate: "", 
     deadline: "",
-    requiredMaterials: []
+    requiredMaterials: [],
+    images: []
   });
   const [sortOrder, setSortOrder] = useState('deadline-asc');
   
   // State for the new material input
-  const [selectedMaterialId, setSelectedMaterialId] = useState(''); // Changed to selectedMaterialId
-  const [newMaterialQuantity, setNewMaterialQuantity] = useState(1);
+  const [selectedMaterialId, setSelectedMaterialId] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   async function fetchProducts() {
     try {
@@ -50,14 +52,14 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
       console.error("Error fetching products:", error);
-      alert(`Error fetching products: ${error.message}`);
+      alert(`Error fetching products: ${String(error.message)}`);
       setProducts([]);
     }
   }
 
   async function fetchRawMaterials() { // Re-introduced fetchRawMaterials
     try {
-      const res = await fetch('/api/raw-materials');
+      const res = await fetch('/api/supplier');
       if (res.ok) {
         const data = await res.json();
         setRawMaterials(data);
@@ -71,7 +73,7 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
       console.error("Error fetching raw materials:", error);
-      alert(`Error fetching raw materials: ${error.message}`);
+      alert(`Error fetching raw materials: ${String(error.message)}`);
     }
   }
 
@@ -93,8 +95,9 @@ export default function ProductDevelopmentPage() {
       deadline: "",
       requiredMaterials: []
     });
-    setSelectedMaterialId(''); // Reset selected material ID
-    setNewMaterialQuantity(1);
+    setSelectedMaterialId('');
+    setSelectedFiles([]);
+    setImagePreviews([]);
   };
 
   const handleInputChange = (e) => {
@@ -103,20 +106,20 @@ export default function ProductDevelopmentPage() {
   };
 
   const handleAddMaterial = () => {
-    if (!selectedMaterialId || newMaterialQuantity <= 0) {
-      alert("Please select a material and specify a valid quantity.");
+    if (!selectedMaterialId) {
+      alert("Please select a supplier.");
       return;
     }
     
-    const materialToAdd = rawMaterials.find(m => m.id === parseInt(selectedMaterialId));
-    if (!materialToAdd) {
-        alert("Selected material not found in master list.");
+    const supplierToAdd = rawMaterials.find(m => m.id === parseInt(selectedMaterialId));
+    if (!supplierToAdd) {
+        alert("Selected supplier not found.");
         return;
     }
 
-    // Check if material is already added to this product
-    if (formData.requiredMaterials.some(m => m.material_id === materialToAdd.id)) {
-        alert("This material has already been added to this product.");
+    // Check if supplier is already added to this product
+    if (formData.requiredMaterials.some(s => s.supplier_id === supplierToAdd.id)) {
+        alert("This supplier has already been added to this product.");
         return;
     }
 
@@ -125,28 +128,85 @@ export default function ProductDevelopmentPage() {
       requiredMaterials: [
         ...prev.requiredMaterials,
         { 
-          material_id: materialToAdd.id,
-          material_name: materialToAdd.name, // Store name for display, ID for backend
-          quantity_needed: parseInt(newMaterialQuantity)
+          supplier_id: supplierToAdd.id,
+          supplier_name: supplierToAdd.name,
         }
       ]
     }));
     setSelectedMaterialId(''); // Clear selection
-    setNewMaterialQuantity(1);
   };
 
-  const handleRemoveMaterial = (materialId) => { // Removed by ID now
+  const handleRemoveMaterial = (supplierId) => {
     setFormData(prev => ({
       ...prev,
-      requiredMaterials: prev.requiredMaterials.filter(m => m.material_id !== materialId)
+      requiredMaterials: prev.requiredMaterials.filter(s => s.supplier_id !== supplierId)
     }));
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
+
+    const fileReaders = [];
+    const newPreviews = [];
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newPreviews.push(reader.result);
+        if (newPreviews.length === files.length) {
+          setImagePreviews(newPreviews);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const url = formData.id ? `/api/products/${formData.id}` : '/api/products';
     const method = formData.id ? 'PUT' : 'POST';
-    const payload = { ...formData };
+    const payload = {
+      id: formData.id,
+      name: formData.name || '',
+      sku: formData.sku || '',
+      category: formData.category || '',
+      description: formData.description || '',
+      startDate: formData.startDate || '',
+      deadline: formData.deadline || '',
+      requiredMaterials: formData.requiredMaterials,
+      images: formData.images,
+    }; // payload now includes formData.images (existing images)
+
+    // Upload new files if selected
+    if (selectedFiles.length > 0) {
+      const uploadFormData = new FormData();
+      selectedFiles.forEach(file => {
+        uploadFormData.append('images', file);
+      });
+
+      try {
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData, // No 'Content-Type' header here, browser sets it for FormData
+        });
+
+        if (uploadRes.ok) {
+          const { urls } = await uploadRes.json();
+          payload.images = [...(payload.images || []), ...urls]; // Add new URLs to existing ones
+        } else {
+          let errorMsg = `Failed to upload images. Status: ${uploadRes.status}`;
+          try {
+            const errorData = await uploadRes.json();
+            errorMsg = errorData.message || errorMsg;
+          } catch (jsonErr) {}
+          throw new Error(errorMsg);
+        }
+      } catch (uploadError) {
+        console.error("Error uploading images:", uploadError);
+        alert(`Error uploading images: ${String(uploadError.message)}`);
+        return; // Stop submission if image upload fails
+      }
+    }
 
     try {
       const res = await fetch(url, {
@@ -164,11 +224,12 @@ export default function ProductDevelopmentPage() {
           const errorData = await res.json();
           errorMsg = errorData.message || errorMsg;
         } catch (jsonErr) {}
-        throw new Error(errorMsg);
-      }
+          console.error(errorMsg);
+          alert(errorMsg);
+      } // Corrected: Added missing closing brace for the else block
     } catch (error) {
       console.error("Error submitting product:", error);
-      alert(error.message);
+      alert(String(error.message));
     }
   };
 
@@ -181,8 +242,13 @@ export default function ProductDevelopmentPage() {
             ...data,
             startDate: formatDateForInput(data.startDate),
             deadline: formatDateForInput(data.deadline),
-            requiredMaterials: data.requiredMaterials || []
+            requiredMaterials: (data.requiredMaterials || []).map(material => ({
+                supplier_id: material.material_id,
+                supplier_name: material.material_name,
+            }))
         });
+        setSelectedFiles([]); // Reset selected files
+        setImagePreviews([]); // Reset image previews
         openModal();
       } else {
         let errorMsg = `Failed to fetch product details. Status: ${res.status}`;
@@ -194,7 +260,7 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
         console.error("Error in handleEdit:", error);
-        alert(error.message);
+        alert(String(error.message));
     }
   };
 
@@ -215,7 +281,7 @@ export default function ProductDevelopmentPage() {
       }
     } catch (err) {
       console.error("Error in handleDelete:", err);
-      alert(`Error: ${err.message}`);
+      alert(`Error: ${String(err.message)}`);
     }
   };
 
@@ -292,31 +358,45 @@ export default function ProductDevelopmentPage() {
               <div className={styles.formGroup}><label>Deadline</label><input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required /></div>
               
               <div className={styles.formGroup}>
-                <h3>Required Materials</h3>
+                <label>Product Images</label>
+                <input 
+                  type="file" 
+                  name="images" 
+                  accept="image/*" 
+                  multiple 
+                  onChange={handleFileChange} 
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+                  {imagePreviews.map((src, index) => (
+                    <img key={index} src={src} alt="Preview" width={100} height={100} style={{ objectFit: 'cover', borderRadius: '5px' }} />
+                  ))}
+                  {formData.images && formData.images.map((imgSrc, index) => (
+                    <div key={`existing-${index}`} style={{ position: 'relative' }}>
+                      <img src={imgSrc} alt="Existing" width={100} height={100} style={{ objectFit: 'cover', borderRadius: '5px' }} />
+                      {/* You might want a button to remove existing images here if needed */}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <h3>Add New Supplier</h3>
                 <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
                   <select 
                     value={selectedMaterialId} 
                     onChange={e => setSelectedMaterialId(e.target.value)}
                     style={{flex: 2}}
                   >
-                    <option value="">-- Select Material --</option>
+                    <option value="">-- Select Supplier --</option>
                     {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
-                  <input 
-                    type="number"
-                    value={newMaterialQuantity}
-                    onChange={e => setNewMaterialQuantity(e.target.value)}
-                    min="1"
-                    placeholder="Qty"
-                    style={{flex: 1}}
-                  />
                   <button type="button" onClick={handleAddMaterial} className={styles.addButton}><FaPlus/></button>
                 </div>
                 <ul>
-                  {formData.requiredMaterials.map(m => (
-                    <li key={m.material_id}>
-                      {m.material_name} ({m.quantity_needed})
-                      <button type="button" onClick={() => handleRemoveMaterial(m.material_id)} style={{marginLeft: '10px', color: 'red'}}><FaTrash/></button>
+                  {formData.requiredMaterials.map(s => (
+                    <li key={s.supplier_id}>
+                      {s.supplier_name}
+                      <button type="button" onClick={() => handleRemoveMaterial(s.supplier_id)} style={{marginLeft: '10px', color: 'red'}}><FaTrash/></button>
                     </li>
                   ))}
                 </ul>

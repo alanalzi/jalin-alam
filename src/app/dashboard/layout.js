@@ -57,9 +57,9 @@ export default function DashboardLayout({ children, centerContent = false }) {
               <FaCog className={styles.menuIcon} />
               <span>Setting & Report</span>
             </Link>
-            <Link href="/raw-materials" className={`${styles.sidebarMenuItem} ${pathname === '/raw-materials' ? styles.active : ''}`}>
+            <Link href="/supplier" className={`${styles.sidebarMenuItem} ${pathname === '/supplier' ? styles.active : ''}`}>
               <FaBoxOpen className={styles.menuIcon} /> {/* Using FaBoxOpen for materials */}
-              <span>Manage Raw Materials</span>
+              <span>Supplier</span>
             </Link>
 
             {(role === "admin" || role === "direktur") && (

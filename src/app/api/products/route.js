@@ -23,13 +23,14 @@ export async function GET() {
         p.description,
         p.start_date AS startDate,
         p.deadline,
+        p.status,
         GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images
       FROM
         products p
       LEFT JOIN
         product_images pi ON p.id = pi.product_id
       GROUP BY
-        p.id, p.name, p.sku, p.category, p.description, p.start_date, p.deadline
+        p.id, p.name, p.sku, p.category, p.description, p.start_date, p.deadline, p.status
       ORDER BY p.id DESC
     `);
     
@@ -52,7 +53,13 @@ export async function GET() {
 
 export async function POST(req) {
   let connection;
-  const { name, sku, category, description, startDate, deadline, requiredMaterials } = await req.json();
+  const { name, sku, category, description, startDate, deadline, status, requiredMaterials, images } = await req.json();
+
+  console.log('POST /api/products: Incoming payload for new product');
+  console.log('Payload name:', name);
+  console.log('Payload sku:', sku);
+  console.log('Payload requiredMaterials:', requiredMaterials);
+  console.log('Payload images:', images);
 
   try {
     if (!name || !sku) {
@@ -64,55 +71,56 @@ export async function POST(req) {
 
     // Insert new product
     const [productResult] = await connection.execute(
-      `INSERT INTO products (name, sku, category, description, start_date, deadline) VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, sku, category, description, startDate, deadline]
+      `INSERT INTO products (name, sku, category, description, start_date, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, sku, category, description, startDate, deadline, status || 'ongoing']
     );
     const productId = productResult.insertId;
+    console.log('Product inserted with ID:', productId);
 
-    // Handle required materials with upsert logic
+    // Handle required materials
     if (requiredMaterials && requiredMaterials.length > 0) {
-      for (const material of requiredMaterials) {
-        // Find existing raw material (case-insensitive)
-        const [existing] = await connection.execute(
-          'SELECT id, stock_quantity FROM raw_materials WHERE LOWER(name) = LOWER(?)',
-          [material.material_name]
+      console.log('Processing required materials...');
+      for (const supplier of requiredMaterials) {
+        const materialId = supplier.supplier_id;
+        const quantityNeeded = 1; // Default quantity as it's no longer specified in the UI
+
+        console.log('Material ID from frontend (supplier_id):', materialId);
+        console.log('Default quantity needed:', quantityNeeded);
+
+        // Check if the supplier (material) actually exists in the suppliers table
+        const [existingSupplier] = await connection.execute(
+            'SELECT id FROM suppliers WHERE id = ?',
+            [materialId]
         );
+        console.log('Existing supplier query result for materialId', materialId, ':', existingSupplier);
 
-        let materialId;
-        let currentStock = 0;
-        if (existing.length > 0) {
-          materialId = existing[0].id;
-          currentStock = existing[0].stock_quantity;
-        } else {
-          // Insert new raw material if it doesn't exist
-          const [newMaterial] = await connection.execute(
-            'INSERT INTO raw_materials (name, stock_quantity) VALUES (?, ?)',
-            [material.material_name, 0] // Default stock to 0 for new materials
-          );
-          materialId = newMaterial.insertId;
-        }
 
-        // Check for sufficient stock before linking
-        if (currentStock < material.quantity_needed) {
+        if (existingSupplier.length === 0) {
             await connection.rollback();
             return NextResponse.json(
-                { message: `Insufficient stock for material '${material.material_name}'. Needed: ${material.quantity_needed}, Available: ${currentStock}` },
+                { message: `Supplier with ID ${materialId} not found.` },
                 { status: 400 }
             );
         }
 
-        // Decrement stock quantity in raw_materials
-        await connection.execute(
-            'UPDATE raw_materials SET stock_quantity = stock_quantity - ? WHERE id = ?',
-            [material.quantity_needed, materialId]
-        );
-
-        // Link product to the material
+        // Link product to the material (supplier)
+        console.log('Inserting into product_materials:', { productId, materialId, quantityNeeded });
         await connection.execute(
           'INSERT INTO product_materials (product_id, material_id, quantity_needed) VALUES (?, ?, ?)',
-          [productId, materialId, material.quantity_needed]
+          [productId, materialId, quantityNeeded]
         );
       }
+    }
+
+    // Handle product images
+    if (images && Array.isArray(images) && images.length > 0) {
+      console.log('Processing product images...');
+      const imageValues = images.map(imageUrl => [productId, imageUrl]);
+      console.log('Inserting image values:', imageValues);
+      await connection.query(
+        'INSERT INTO product_images (product_id, image_url) VALUES ?',
+        [imageValues]
+      );
     }
 
     await connection.commit();
@@ -122,8 +130,7 @@ export async function POST(req) {
     if (connection) {
       await connection.rollback();
     }
-    console.error('Failed to process POST request:', error);
-
+    console.error('Failed to process POST request:', error); // Log the full error
     if (error.code === 'ER_DUP_ENTRY') {
       return NextResponse.json({ message: `SKU '${sku}' already exists. Please use a different SKU.` }, { status: 409 });
     }
