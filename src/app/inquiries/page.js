@@ -21,6 +21,7 @@ export default function InquiryManagementPage() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const [formData, setFormData] = useState({ 
     id: null, 
+    inquiry_code: "", 
     customer_name: "",
     customer_email: "",
     customer_phone: "",
@@ -64,6 +65,7 @@ export default function InquiryManagementPage() {
     setIsModalOpen(false);
     setFormData({ 
       id: null, 
+      inquiry_code: "",
       customer_name: "",
       customer_email: "",
       customer_phone: "",
@@ -173,6 +175,7 @@ export default function InquiryManagementPage() {
             ...data,
             request_date: formatDateForInput(data.request_date),
             image_deadline: formatDateForInput(data.image_deadline),
+            inquiry_code: data.inquiry_code || '',
             customer_name: data.customer_name || '',
             customer_email: data.customer_email || '',
             customer_phone: data.customer_phone || '',
@@ -228,6 +231,7 @@ export default function InquiryManagementPage() {
         <button onClick={() => { 
           setFormData({ 
             id: null, 
+            inquiry_code: "",
             customer_name: "",
             customer_email: "",
             customer_phone: "",
@@ -248,6 +252,7 @@ export default function InquiryManagementPage() {
           <thead>
             <tr>
               <th>Image</th>
+              <th>Inquiry Code</th>
               <th>Customer Name</th>
               <th>Customer Email</th>
               <th>Customer Phone</th>
@@ -272,6 +277,7 @@ export default function InquiryManagementPage() {
                       style={{objectFit: 'cover'}}
                     />
                   </td>
+                  <td>{inquiry.inquiry_code}</td>
                   <td>{inquiry.customer_name}</td>
                   <td>{inquiry.customer_email}</td>
                   <td>{inquiry.customer_phone}</td>
@@ -296,11 +302,16 @@ export default function InquiryManagementPage() {
           <div key="inquiry-modal-content" className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{formData.id ? "Edit Inquiry" : "Add New Inquiry"}</h2>
             <form onSubmit={handleSubmit}>
+              <div className={styles.formGroup}>
+                <label>Inquiry Code</label>
+                <input
+                  type="text"
+                  name="inquiry_code"
+                  value={formData.inquiry_code}
+                  readOnly // Inquiry code is generated, not directly editable by user
+                />
+              </div>
 
-              <div className={styles.formGroup}><label>Customer Name</label><input type="text" name="customer_name" value={formData.customer_name} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Customer Email</label><input type="email" name="customer_email" value={formData.customer_email} onChange={handleInputChange} /></div>
-              <div className={styles.formGroup}><label>Customer Phone</label><input type="text" name="customer_phone" value={formData.customer_phone} onChange={handleInputChange} /></div>
-              <div className={styles.formGroup}><label>Customer Address</label><textarea name="customer_address" value={formData.customer_address} onChange={handleInputChange}></textarea></div>
               <div className={styles.formGroup}><label>Customer Name</label><input type="text" name="customer_name" value={formData.customer_name} onChange={handleInputChange} required /></div>
               <div className={styles.formGroup}><label>Customer Email</label><input type="email" name="customer_email" value={formData.customer_email} onChange={handleInputChange} /></div>
               <div className={styles.formGroup}><label>Customer Phone</label><input type="text" name="customer_phone" value={formData.customer_phone} onChange={handleInputChange} /></div>

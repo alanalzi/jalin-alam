@@ -24,6 +24,7 @@ export async function GET(request, context) {
     const [rows] = await connection.execute(
       `SELECT
         i.id,
+        i.inquiry_code,
         i.customer_name,
         i.customer_email,
         i.customer_phone,
@@ -43,7 +44,7 @@ export async function GET(request, context) {
         inquiry_images ii ON i.id = ii.inquiry_id
       WHERE i.id = ?
       GROUP BY
-        i.id, i.customer_name, i.customer_email, i.customer_phone, i.customer_address, i.product_name, i.product_description, i.customer_request, i.request_date, i.image_deadline, i.order_quantity, i.created_at, i.updated_at`,
+        i.id, i.inquiry_code, i.customer_name, i.customer_email, i.customer_phone, i.customer_address, i.product_name, i.product_description, i.customer_request, i.request_date, i.image_deadline, i.order_quantity, i.created_at, i.updated_at`,
       [id]
     );
 
@@ -71,6 +72,7 @@ export async function GET(request, context) {
 export async function PUT(request, context) {
   const { id } = context.params;
   const {
+    inquiry_code,
     customer_name,
     customer_email,
     customer_phone,
@@ -95,6 +97,7 @@ export async function PUT(request, context) {
 
     const [result] = await connection.execute(
       `UPDATE inquiries SET
+        inquiry_code = ?,
         customer_name = ?,
         customer_email = ?,
         customer_phone = ?,
@@ -106,7 +109,7 @@ export async function PUT(request, context) {
         image_deadline = ?,
         order_quantity = ?
       WHERE id = ?`,
-      [customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity, id]
+      [inquiry_code, customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity, id]
     );
 
     if (result.affectedRows === 0) {

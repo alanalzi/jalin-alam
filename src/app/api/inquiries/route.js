@@ -17,6 +17,7 @@ export async function GET() {
     const [rows] = await connection.execute(`
       SELECT
         i.id,
+        i.inquiry_code,
         i.customer_name,
         i.customer_email,
         i.customer_phone,
@@ -35,7 +36,7 @@ export async function GET() {
       LEFT JOIN
         inquiry_images ii ON i.id = ii.inquiry_id
       GROUP BY
-        i.id, i.customer_name, i.customer_email, i.customer_phone, i.customer_address, i.product_name, i.product_description, i.customer_request, i.request_date, i.image_deadline, i.order_quantity, i.created_at, i.updated_at
+        i.id, i.inquiry_code, i.customer_name, i.customer_email, i.customer_phone, i.customer_address, i.product_name, i.product_description, i.customer_request, i.request_date, i.image_deadline, i.order_quantity, i.created_at, i.updated_at
       ORDER BY i.created_at DESC
     `);
     
@@ -78,10 +79,13 @@ export async function POST(req) {
 
     connection = await mysql.createConnection(dbConfig);
     await connection.beginTransaction();
+
+    const [uuidRows] = await connection.execute('SELECT UUID() as uuid');
+    const inquiry_code = `INQ-${uuidRows[0].uuid.split('-')[0].toUpperCase()}-${Date.now()}`;
     
     const [result] = await connection.execute(
-      `INSERT INTO inquiries (customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity]
+      `INSERT INTO inquiries (inquiry_code, customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [inquiry_code, customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity]
     );
     const inquiryId = result.insertId;
 
