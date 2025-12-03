@@ -306,3 +306,17 @@
     color: #2c7a7b; /* Highlight on hover */
     text-decoration: underline; /* Add underline on hover */
 }
+
+.imagePreviewContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* Ensure image previews are always flex (diagnostic rule) */
+.modalContent .imagePreviewContainer {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 10px;
+}

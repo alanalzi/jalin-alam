@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FaArrowLeft, FaPlus, FaSave, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaSave, FaTrash, FaChevronLeft, FaChevronRight, FaTimes } from 'react-icons/fa';
 import styles from './product-detail.module.css'; // Import the CSS module
 
 // Helper function to format date strings for database (YYYY-MM-DD)
@@ -36,6 +36,31 @@ export default function ProductDetailPage() {
   const [requiredMaterials, setRequiredMaterials] = useState([]);
   const [newTask, setNewTask] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // State for image preview modal
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const openImageModal = (index) => {
+    setCurrentImageIndex(index);
+    setIsImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setIsImageModalOpen(false);
+  };
+
+  const showNextImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      (prevIndex + 1) % product.images.length
+    );
+  };
+
+  const showPrevImage = () => {
+    setCurrentImageIndex((prevIndex) =>
+      (prevIndex - 1 + product.images.length) % product.images.length
+    );
+  };
 
   async function fetchProduct() {
     if (!id) return;
@@ -191,6 +216,7 @@ export default function ProductDetailPage() {
               width={150} 
               height={150} 
               className={styles.productImage} 
+              onClick={() => openImageModal(index)} // Make image clickable
             />
           ))
         ) : (
@@ -304,6 +330,29 @@ export default function ProductDetailPage() {
           <FaSave /> Save Checklist Changes
         </button>
       </div>
+
+      {/* Image Preview Modal */}
+      {isImageModalOpen && product.images && product.images.length > 0 && (
+        <div className={styles.imageModalOverlay} onClick={closeImageModal}>
+          <div className={styles.imageModalContent} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.closeImageModalButton} onClick={closeImageModal}><FaTimes /></button>
+            <img 
+              src={product.images[currentImageIndex]} 
+              alt={`${product.name} image ${currentImageIndex + 1}`} 
+              className={styles.modalImage} 
+            />
+            {product.images.length > 1 && (
+              <>
+                <button className={styles.prevImageButton} onClick={showPrevImage}><FaChevronLeft /></button>
+                <button className={styles.nextImageButton} onClick={showNextImage}><FaChevronRight /></button>
+              </>
+            )}
+            <div className={styles.imageCounter}>
+              {currentImageIndex + 1} / {product.images.length}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

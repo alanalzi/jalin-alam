@@ -288,23 +288,24 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: #f8f9fa; /* Light solid color for consistency */
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #dee2e6; /* Light border */
 }
 
 .sortContainer label {
   font-weight: 500;
   font-size: 0.9rem;
+  color: #495057; /* Dark text for readability */
 }
 
 .sortSelect {
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background-color: rgba(0, 0, 0, 0.2);
-  color: #f0f0f0;
+  border: 1px solid #ced4da; /* Light border */
+  background-color: #fff; /* White solid background */
+  color: #495057; /* Dark text for readability */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -312,8 +313,8 @@
 
 .sortSelect:focus {
   outline: none;
-  border-color: #2c7a7b;
-  box-shadow: 0 0 0 2px rgba(44, 122, 123, 0.5);
+  border-color: #80bdff; /* Focus blue */
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); /* Focus shadow */
 }
 
 /* Custom Scrollbar Styles */

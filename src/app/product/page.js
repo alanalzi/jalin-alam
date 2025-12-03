@@ -371,10 +371,29 @@ export default function ProductDevelopmentPage() {
 
   const sortedProducts = [...products].sort((a, b) => {
     const [sortField, sortDirection] = sortOrder.split('-');
-    const field = sortField === 'deadline' ? 'deadline' : 'startDate';
-    const dateA = new Date(a[field]);
-    const dateB = new Date(b[field]);
-    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+
+    let compareA, compareB;
+
+    if (sortField.includes('Date') || sortField === 'deadline') {
+      compareA = new Date(a[sortField]);
+      compareB = new Date(b[sortField]);
+
+      // Handle invalid dates by treating them as equal or pushing them to one end
+      if (isNaN(compareA.getTime())) compareA = sortDirection === 'asc' ? -Infinity : Infinity;
+      if (isNaN(compareB.getTime())) compareB = sortDirection === 'asc' ? -Infinity : Infinity;
+      
+    } else { // For string fields like category, type
+      compareA = String(a[sortField]).toLowerCase();
+      compareB = String(b[sortField]).toLowerCase();
+    }
+
+    if (compareA < compareB) {
+      return sortDirection === 'asc' ? -1 : 1;
+    }
+    if (compareA > compareB) {
+      return sortDirection === 'asc' ? 1 : -1;
+    }
+    return 0;
   });
   
   return (
@@ -390,6 +409,12 @@ export default function ProductDevelopmentPage() {
           <select id="sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={styles.sortSelect}>
             <option value="deadline-asc">Deadline (Soonest First)</option>
             <option value="deadline-desc">Deadline (Latest First)</option>
+            <option value="category-asc">Category (A-Z)</option>
+            <option value="category-desc">Category (Z-A)</option>
+            <option value="type-asc">Type (A-Z)</option>
+            <option value="type-desc">Type (Z-A)</option>
+            <option value="startDate-asc">Start Date (Earliest First)</option>
+            <option value="startDate-desc">Start Date (Latest First)</option>
           </select>
         </div>
         <button onClick={() => openModal('New Product')} className={styles.addButton}>Add New Product</button>

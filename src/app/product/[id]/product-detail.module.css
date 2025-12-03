@@ -230,3 +230,99 @@
   font-weight: 600;
   font-size: 0.875rem;
 }
+
+/* Image Preview Modal Styles */
+.imageModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8); /* Darker overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.imageModalContent {
+  position: relative;
+  background: #1f2937; /* Dark background */
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 90%;
+  max-height: 90%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modalImage {
+  max-width: 100%;
+  max-height: 80vh; /* Adjust as needed */
+  object-fit: contain;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.closeImageModalButton {
+  position: absolute;
+  top: 15px; /* Adjust top position */
+  right: 15px; /* Adjust right position */
+  background: rgba(255, 255, 255, 0.3); /* Slightly opaque white background */
+  border: none;
+  color: #ffffff; /* Keep white for contrast */
+  font-size: 1.8rem; /* Increased size */
+  cursor: pointer;
+  z-index: 1001;
+  padding: 8px 12px; /* Increase padding */
+  border-radius: 50%;
+  transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+}
+
+.closeImageModalButton:hover {
+  background-color: rgba(255, 255, 255, 0.5); /* More opaque on hover */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Stronger shadow on hover */
+}
+
+.prevImageButton,
+.nextImageButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  border-radius: 5px;
+  transition: background-color 0.2s ease-in-out;
+  z-index: 1001;
+}
+
+.prevImageButton:hover,
+.nextImageButton:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.prevImageButton {
+  left: 10px;
+}
+
+.nextImageButton {
+  right: 10px;
+}
+
+.imageCounter {
+  color: #ffffff;
+  font-size: 1rem;
+  margin-top: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  border-radius: 5px;
+}
