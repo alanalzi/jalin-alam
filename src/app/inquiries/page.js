@@ -1,6 +1,6 @@
 // jalin-alam/src/app/inquiries/page.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation'; // NEW
 import Link from "next/link";
 import styles from "./inquiries.module.css";
@@ -17,6 +17,7 @@ function formatDateForInput(dateString) {
 
 export default function InquiryManagementPage() {
   const router = useRouter(); // NEW
+  const mounted = useRef(false); // NEW: Ref to track mounted status
   const [inquiries, setInquiries] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -42,9 +43,9 @@ export default function InquiryManagementPage() {
       const res = await fetch(`/api/products?inquiryCode=${inquiryCode}`);
       if (res.ok) {
         const products = await res.json();
-        if (products.length > 0) {
+        if (mounted.current && products.length > 0) { // Check mounted before state update
           router.push(`/product/${products[0].id}`); // Redirect to first found product
-        } else {
+        } else if (mounted.current) { // Check mounted before alert
           alert(`Product for inquiry code '${inquiryCode}' has not been added yet.`);
         }
       } else {
@@ -57,7 +58,9 @@ export default function InquiryManagementPage() {
       }
     } catch (error) {
       console.error("Error navigating to product:", error);
-      alert(`Error: ${String(error.message)}`);
+      if (mounted.current) { // Check mounted before alert
+        alert(`Error: ${String(error.message)}`);
+      }
     }
   };
 
@@ -66,7 +69,9 @@ export default function InquiryManagementPage() {
       const res = await fetch('/api/inquiries');
       if (res.ok) {
         const data = await res.json();
-        setInquiries(data);
+        if (mounted.current) { // Check mounted before state update
+          setInquiries(data);
+        }
       } else {
         let errorMsg = `HTTP Error: ${res.status}`;
         try {
@@ -77,39 +82,49 @@ export default function InquiryManagementPage() {
       }
     } catch (error) {
       console.error("Error fetching inquiries:", error);
-      alert(`Error fetching inquiries: ${String(error.message)}`);
-      setInquiries([]);
+      if (mounted.current) { // Check mounted before state update and alert
+        alert(`Error fetching inquiries: ${String(error.message)}`);
+        setInquiries([]);
+      }
     }
   }
 
   useEffect(() => {
+    mounted.current = true; // Set mounted to true when component mounts
     fetchInquiries();
+    return () => {
+      mounted.current = false; // Set mounted to false when component unmounts
+    };
   }, []);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
-    setIsModalOpen(false);
-    setFormData({ 
-      id: null, 
-      inquiry_code: "",
-      customer_name: "",
-      customer_email: "",
-      customer_phone: "",
-      customer_address: "",
-      product_name: "", 
-      product_description: "", 
-      customer_request: "", 
-      request_date: "", 
-      image_deadline: "", 
-      order_quantity: ""
-    });
-    setSelectedFiles([]);
-    setImagePreviews([]);
+    if (mounted.current) { // Check mounted before state updates
+      setIsModalOpen(false);
+      setFormData({ 
+        id: null, 
+        inquiry_code: "",
+        customer_name: "",
+        customer_email: "",
+        customer_phone: "",
+        customer_address: "",
+        product_name: "", 
+        product_description: "", 
+        customer_request: "", 
+        request_date: "", 
+        image_deadline: "", 
+        order_quantity: ""
+      });
+      setSelectedFiles([]);
+      setImagePreviews([]);
+    }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (mounted.current) { // Check mounted before state update
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleFileChange = (e) => {
@@ -121,9 +136,11 @@ export default function InquiryManagementPage() {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        newPreviews.push(reader.result);
-        if (newPreviews.length === files.length) {
-          setImagePreviews(newPreviews);
+        if (mounted.current) { // Check mounted before state update
+          newPreviews.push(reader.result);
+          if (newPreviews.length === files.length) {
+            setImagePreviews(newPreviews);
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -162,7 +179,9 @@ export default function InquiryManagementPage() {
         }
       } catch (uploadError) {
         console.error("Error uploading images:", uploadError);
-        alert(`Error uploading images: ${String(uploadError.message)}`);
+        if (mounted.current) { // Check mounted before alert
+          alert(`Error uploading images: ${String(uploadError.message)}`);
+        }
         return; // Stop submission if image upload fails
       }
     }
@@ -175,8 +194,10 @@ export default function InquiryManagementPage() {
       });
 
       if (res.ok) {
-        await fetchInquiries();
-        closeModal();
+        if (mounted.current) { // Check mounted before state updates
+          await fetchInquiries();
+          closeModal();
+        }
       } else {
         let errorMsg = `Failed to save inquiry. Status: ${res.status}`;
         try {
@@ -184,11 +205,15 @@ export default function InquiryManagementPage() {
           errorMsg = errorData.message || errorMsg;
         } catch (jsonErr) {}
         console.error(errorMsg);
-        alert(errorMsg);
+        if (mounted.current) { // Check mounted before alert
+          alert(errorMsg);
+        }
       }
     } catch (error) {
       console.error("Error submitting inquiry:", error);
-      alert(String(error.message));
+      if (mounted.current) { // Check mounted before alert
+        alert(String(error.message));
+      }
     }
   };
 
@@ -197,21 +222,23 @@ export default function InquiryManagementPage() {
       const res = await fetch(`/api/inquiries/${inquiry.id}`);
       if(res.ok) {
         const data = await res.json();
-        setFormData({
-            ...data,
-            request_date: formatDateForInput(data.request_date),
-            image_deadline: formatDateForInput(data.image_deadline),
-            inquiry_code: data.inquiry_code || '',
-            customer_name: data.customer_name || '',
-            customer_email: data.customer_email || '',
-            customer_phone: data.customer_phone || '',
-            customer_address: data.customer_address || '',
-            order_quantity: data.order_quantity.toString(),
-            images: data.images || [], // Populate existing images
-        });
-        setSelectedFiles([]); // Reset selected files
-        setImagePreviews([]); // Reset image previews
-        openModal();
+        if (mounted.current) { // Check mounted before state updates
+          setFormData({
+              ...data,
+              request_date: formatDateForInput(data.request_date),
+              image_deadline: formatDateForInput(data.image_deadline),
+              inquiry_code: data.inquiry_code || '',
+              customer_name: data.customer_name || '',
+              customer_email: data.customer_email || '',
+              customer_phone: data.customer_phone || '',
+              customer_address: data.customer_address || '',
+              order_quantity: data.order_quantity.toString(),
+              images: data.images || [], // Populate existing images
+          });
+          setSelectedFiles([]); // Reset selected files
+          setImagePreviews([]); // Reset image previews
+          openModal();
+        }
       } else {
         let errorMsg = `Failed to fetch inquiry details. Status: ${res.status}`;
         try {
@@ -222,7 +249,9 @@ export default function InquiryManagementPage() {
       }
     } catch (error) {
         console.error("Error in handleEdit:", error);
-        alert(String(error.message));
+        if (mounted.current) { // Check mounted before alert
+          alert(String(error.message));
+        }
     }
   };
 
@@ -231,7 +260,9 @@ export default function InquiryManagementPage() {
     try {
       const res = await fetch(`/api/inquiries/${inquiryId}`, { method: 'DELETE' });
       if (res.ok) {
-        await fetchInquiries();
+        if (mounted.current) { // Check mounted before state update
+          await fetchInquiries();
+        }
       } else {
         let errorMsg = `Failed to delete inquiry. Status: ${res.status}`;
         try {
@@ -242,7 +273,9 @@ export default function InquiryManagementPage() {
       }
     } catch (err) {
       console.error("Error in handleDelete:", err);
-      alert(`Error: ${String(err.message)}`);
+      if (mounted.current) { // Check mounted before alert
+        alert(`Error: ${String(err.message)}`);
+      }
     }
   };
   
@@ -255,21 +288,23 @@ export default function InquiryManagementPage() {
       
       <div className={styles.toolbar}>
         <button onClick={() => { 
-          setFormData({ 
-            id: null, 
-            inquiry_code: "",
-            customer_name: "",
-            customer_email: "",
-            customer_phone: "",
-            customer_address: "",
-            product_name: "", 
-            product_description: "", 
-            customer_request: "", 
-            request_date: "", 
-            image_deadline: "", 
-            order_quantity: ""
-          }); 
-          openModal(); 
+          if (mounted.current) { // Check mounted before state update
+            setFormData({ 
+              id: null, 
+              inquiry_code: "",
+              customer_name: "",
+              customer_email: "",
+              customer_phone: "",
+              customer_address: "",
+              product_name: "", 
+              product_description: "", 
+              customer_request: "", 
+              request_date: "", 
+              image_deadline: "", 
+              order_quantity: ""
+            }); 
+            openModal(); 
+          }
         }} className={styles.addButton}>Add Inquiry</button>
       </div>
 
@@ -340,9 +375,9 @@ export default function InquiryManagementPage() {
               </div>
 
               <div className={styles.formGroup}><label>Customer Name</label><input type="text" name="customer_name" value={formData.customer_name} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Customer Email</label><input type="email" name="customer_email" value={formData.customer_email} onChange={handleInputChange} /></div>
-              <div className={styles.formGroup}><label>Customer Phone</label><input type="text" name="customer_phone" value={formData.customer_phone} onChange={handleInputChange} /></div>
-              <div className={styles.formGroup}><label>Customer Address</label><textarea name="customer_address" value={formData.customer_address} onChange={handleInputChange}></textarea></div>
+              <div className={styles.formGroup}><label>Customer Email</label><input type="email" name="customer_email" value={formData.customer_email} onChange={handleInputChange} required/></div>
+              <div className={styles.formGroup}><label>Customer Phone</label><input type="text" name="customer_phone" value={formData.customer_phone} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Customer Address</label><textarea name="customer_address" value={formData.customer_address} onChange={handleInputChange} required></textarea></div>
 
               <div className={styles.formGroup}>
                 <label>Inquiry Images</label>

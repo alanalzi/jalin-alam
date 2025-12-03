@@ -11,8 +11,8 @@ const dbConfig = {
 };
 
 
-export async function GET(request, context) {
-  const { id } = context.params;
+export async function GET(request, { params }) {
+  const { id } = params;
 
   if (!id) {
     return NextResponse.json({ message: 'Product ID is required' }, { status: 400 });
@@ -22,68 +22,88 @@ export async function GET(request, context) {
   try {
     connection = await mysql.createConnection(dbConfig);
 
-    // Fetch product details
-        const [productRows] = await connection.execute(
-          `SELECT
-             p.id,
-             p.name,
-             p.inquiry_code,
-             p.category,
-             p.description,
-             p.start_date AS startDate,
-             p.deadline AS deadline,
-             p.status,
-             p.type
-           FROM products p
-           WHERE p.id = ?`,
-          [id]
-        );    if (productRows.length === 0) {
+    // Fetch the base product to determine its type
+    const [productRows] = await connection.execute(
+      `SELECT id, inquiry_code, category, status, type FROM products WHERE id = ?`,
+      [id]
+    );
+
+    if (productRows.length === 0) {
       return NextResponse.json({ message: 'Product not found' }, { status: 404 });
     }
     const product = productRows[0];
 
-    // IF product.type is 'Custom' and inquiry_code exists, fetch inquiry details
+    // Based on the product type, fetch the rest of the data from the correct source
     if (product.type === 'Custom' && product.inquiry_code) {
+      // For Custom products, get live data from the inquiry
       const [inquiryRows] = await connection.execute(
-        `SELECT customer_request, order_quantity
-         FROM inquiries
-         WHERE inquiry_code = ?`,
+        `SELECT
+           i.product_name,
+           i.product_description,
+           i.request_date,
+           i.image_deadline,
+           i.customer_request,
+           i.order_quantity,
+           GROUP_CONCAT(ii.image_url ORDER BY ii.id ASC) AS images
+         FROM inquiries i
+         LEFT JOIN inquiry_images ii ON i.id = ii.inquiry_id
+         WHERE i.inquiry_code = ?
+         GROUP BY i.id`,
         [product.inquiry_code]
       );
+
       if (inquiryRows.length > 0) {
-        product.customer_request = inquiryRows[0].customer_request;
-        product.order_quantity = inquiryRows[0].order_quantity;
+        const inquiryData = inquiryRows[0];
+        // Map inquiry data to the product object
+        product.name = inquiryData.product_name;
+        product.description = inquiryData.product_description;
+        product.startDate = inquiryData.request_date;
+        product.deadline = inquiryData.image_deadline;
+        product.customer_request = inquiryData.customer_request;
+        product.order_quantity = inquiryData.order_quantity;
+        product.images = inquiryData.images ? inquiryData.images.split(',') : [];
+      } else {
+        // Inquiry not found, set fields to empty/default
+        product.name = 'Inquiry Data Not Found';
+        product.images = [];
       }
+
+    } else {
+      // For 'New Product' or other types, get data from the products table itself
+      const [fullProductRows] = await connection.execute(
+        `SELECT name, description, start_date AS startDate, deadline FROM products WHERE id = ?`,
+        [id]
+      );
+      if (fullProductRows.length > 0) {
+        // Merge the details into the main product object
+        Object.assign(product, fullProductRows[0]);
+      }
+      
+      // Fetch images from the product_images table
+      const [imageRows] = await connection.execute('SELECT image_url FROM product_images WHERE product_id = ?', [id]);
+      product.images = imageRows.map(row => row.image_url);
     }
 
-    // Fetch product images
-    const [imageRows] = await connection.execute('SELECT image_url FROM product_images WHERE product_id = ?', [id]);
-    product.images = imageRows.map(row => row.image_url);
+    // Fetch common related data (checklist, materials) for all product types
+    const [checklistRows] = await connection.execute('SELECT * FROM product_checklists WHERE product_id = ?', [id]);
+    product.checklist = checklistRows;
+    
+    if (product.checklist && product.checklist.length > 0) {
+      const totalPercentageSum = product.checklist.reduce((sum, task) => sum + (task.percentage || 0), 0);
+      product.overall_checklist_percentage = Math.round(totalPercentageSum / product.checklist.length);
+    } else {
+      product.overall_checklist_percentage = 0;
+    }
 
-        // Fetch product checklist
-        const [checklistRows] = await connection.execute('SELECT * FROM product_checklists WHERE product_id = ?', [id]);
-        product.checklist = checklistRows;
-    
-        // Calculate overall percentage for checklist
-        if (product.checklist && product.checklist.length > 0) {
-          const totalPercentageSum = product.checklist.reduce((sum, task) => sum + (task.percentage || 0), 0);
-          product.overall_checklist_percentage = Math.round(totalPercentageSum / product.checklist.length);
-        } else {
-          product.overall_checklist_percentage = 0;
-        }
-    
-        // Fetch required materials
-        const [materialRows] = await connection.execute(`
-            SELECT
-                pm.material_id,
-                rm.name as material_name,
-                pm.quantity_needed,
-                rm.supplier_description,
-                rm.contact_info_text
-            FROM product_materials pm
-            JOIN suppliers rm ON pm.material_id = rm.id
-            WHERE pm.product_id = ?
-        `, [id]);    product.requiredMaterials = materialRows;
+    const [materialRows] = await connection.execute(`
+        SELECT pm.material_id, rm.name as material_name, pm.quantity_needed,
+               rm.supplier_description, rm.contact_info_text
+        FROM product_materials pm
+        JOIN suppliers rm ON pm.material_id = rm.id
+        WHERE pm.product_id = ?`,
+      [id]
+    );
+    product.requiredMaterials = materialRows;
 
     return NextResponse.json(product);
 

@@ -400,7 +400,7 @@ export default function ProductDevelopmentPage() {
         <table className={styles.productTable}>
           <thead>
             <tr>
-              <th>Image</th><th>Product Name</th><th>Inquiry Code</th><th>Category</th><th>Type</th><th>Start Date</th><th>Deadline</th><th>Progress</th><th>Actions</th>
+              <th>Image</th><th>Product Name</th><th>Code</th><th>Category</th><th>Type</th><th>Start Date</th><th>Deadline</th><th>Progress</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>

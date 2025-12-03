@@ -169,6 +169,7 @@
 .formGroup input[type="text"],
 .formGroup input[type="date"],
 .formGroup input[type="number"],
+.formGroup input[type="email"],
 .formGroup textarea,
 .formGroup select {
   width: 100%; /* Changed from calc(100% - 22px) to 100% for consistency */
@@ -191,6 +192,26 @@
   border-color: #2c7a7b; /* Focus border color from product-development */
   outline: none;
   box-shadow: 0 0 0 2px rgba(44, 122, 123, 0.5); /* Focus shadow from product-development */
+}
+.formGroup input[type="file"] {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.formGroup input[type="file"]::file-selector-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2c7a7b;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.formGroup input[type="file"]::file-selector-button:hover {
+  background: #285e61;
 }
 
 .modalActions {
@@ -271,10 +292,17 @@
 
 .clickableInquiryCode {
     cursor: pointer;
-    color: #4A90E2; /* A nice blue color */
-    text-decoration: underline;
+    font-size: 1.1rem; /* Slightly larger font */
+    font-weight: 600; /* Bolder */
+    color: #f0f0f0; /* Ensure good contrast */
+    text-decoration: none; /* Remove default underline */
+    display: block; /* Allow padding and margin */
+    word-wrap: break-word; /* Ensure long words break */
+    white-space: normal; /* Ensure text wraps normally */
+    transition: color 0.2s ease-in-out;
 }
 
 .clickableInquiryCode:hover {
-    color: #6aabf7; /* Lighter blue on hover */
+    color: #2c7a7b; /* Highlight on hover */
+    text-decoration: underline; /* Add underline on hover */
 }
